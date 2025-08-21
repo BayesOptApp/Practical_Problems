@@ -25,7 +25,7 @@ MU = [22321, # Mercury
 # Gravitational constant of the Sun
 MU_SUN = 1.32712428e+11
 
-RAD = np.pi / 180
+RAD = np.pi / 180.0
 KM = 1.495978706910000e+008
 AU = 149597870.66 # km
 
@@ -134,13 +134,13 @@ def mga_dsm(t):
     for i  in range(nn-2):
         rp[i] = rp_non_dim[i] * RPL[seq[i+1]-1]; # Dimensional flyby radii (i=1 corresponds to the second planet)
     
-    vtemp= np.linalg.cross(rr[:,0],vv[:,0])
+    vtemp= np.cross(rr[:,0],vv[:,0])
     iP1= vv[:,0]/np.linalg.norm(vv[:,0])
     zP1= vtemp/np.linalg.norm(vtemp)
-    jP1= np.linalg.cross(zP1,iP1)
+    jP1= np.cross(zP1,iP1)
 
     theta=2*np.pi*udir #See Picking a Point on a Sphere
-    phi=np.acos(2*vdir-1)-np.pi/2; # In this way: -pi/2<phi<pi/2 so phi can be used as out-of-plane rotation
+    phi=np.arccos(2*vdir-1)-np.pi/2; # In this way: -pi/2<phi<pi/2 so phi can be used as out-of-plane rotation
     vinf=VINF*(np.cos(theta)*np.cos(phi)*iP1+np.sin(theta)*np.cos(phi)*jP1+np.sin(phi)*zP1)
 
     v_sc_pl_in = np.zeros_like(vv) # Spacecraft absolute incoming velocity at P1 (km/s)
@@ -178,7 +178,7 @@ def mga_dsm(t):
         v_rel_in=v_sc_pl_in[:,i+1]-vv[:,i+1]
 
         e=1+rp[i]/mu_vec[i+1]*np.dot(v_rel_in.T,v_rel_in).ravel(); ##ok<*MHERM>
-        beta_rot=2*np.asin(1/e);            # velocity rotation
+        beta_rot=2*np.arcsin(1/e);            # velocity rotation
 
         ix=v_rel_in/np.linalg.norm(v_rel_in)
         iy=vett(ix,vv[:,i+1]/np.linalg.norm(vv[:,i+1])).T
@@ -226,9 +226,9 @@ def propagateKEP(r0, v0, t, mu)->Tuple[np.ndarray, np.ndarray]:
     # Check if the orbit is retrograde (ih = [0, 0, -1]) with a small tolerance.
     if np.abs(np.abs(ih[2]) - 1) < 1e-3:
         # Random rotation matrix to make the Euler angles well defined for retrograde orbits
-        DD:np.ndarray = np.asarray([[1, 0, 0],
-                                    [ 0, 0, 1],
-                                    [ 0, -1, 0]])
+        DD:np.ndarray = np.asarray([[1.0, 0.0, 0.0],
+                                    [ 0.0, 0.0, 1.0],
+                                    [ 0.0, -1.0, 0.0]])
         # Rotate the initial position and velocity vectors
         r0 = np.dot(DD , r0)
         v0 = np.dot(DD , v0)
@@ -284,24 +284,24 @@ def IC2par(r0:np.ndarray,
     E[1] = np.sqrt(e) # Eccentricity
     e = E[1,0] # Eccentricity
     
-    E[2] = np.acos(h[2] / np.linalg.norm(h)) # Inclination
+    E[2] = np.arccos(h[2] / np.linalg.norm(h)) # Inclination
     
     # Argument of periapsis (omega)
-    E[4] = (np.acos(np.dot(n.flatten(), evett) / e))
+    E[4] = (np.arccos(np.dot(n.flatten(), evett) / e))
     
     # Check for quadrant and adjust the angle if necessary
     if evett[2] < 0:
-        E[4] = 2 * pi - E[4]
+        E[4] = 2 * np.pi - E[4]
     
     # Right ascension of the ascending node (Omega)
-    E[3] = np.acos(n[0])
+    E[3] = np.arccos(n[0])
     if n[1] < 0:
-        E[3] = 2 * pi - E[3]
+        E[3] = 2 * np.pi - E[3]
     
     # True anomaly (theta)
-    ni = np.real(np.acos(np.dot(evett.T, r0) / e / R0)); # Real is to avoid problems when ni~=pi
+    ni = np.real(np.arccos(np.dot(evett.T, r0) / e / R0)); # Real is to avoid problems when ni~=pi
     if np.dot(r0, v0).flatten()[0] < 0:
-        ni = 2 * pi - ni
+        ni = 2 * np.pi - ni
     
     # Solve for eccentric anomaly (E) from true anomaly (theta)
     E[5] = ni2E(ni, e)
@@ -325,9 +325,9 @@ def ni2E(ni:float, e:float):
     
 
     if e < 1:
-        E = 2 * np.atan(np.sqrt((1 - e) / (1 + e)) * np.tan(ni / 2)); # Algebraic Kepler's equation for ellipse
+        E = 2 * np.arctan(np.sqrt((1 - e) / (1 + e)) * np.tan(ni / 2)); # Algebraic Kepler's equation for ellipse
     else:
-        E = 2 * np.atan(np.sqrt((e - 1) / (e + 1)) * np.tan(ni / 2)); # Algebraic equivalent of Kepler's equation in terms of the Gudermannian for hyperbola
+        E = 2 * np.arctan(np.sqrt((e - 1) / (e + 1)) * np.tan(ni / 2)); # Algebraic equivalent of Kepler's equation in terms of the Gudermannian for hyperbola
 
     return E
 
@@ -360,39 +360,39 @@ def par2IC(E:np.ndarray, mu:float):
     
     # If the orbit is an ellipse
     if e < 1:
-        b = a * sqrt(1 - e**2)
-        n = sqrt(mu / a**3)
+        b = a * np.sqrt(1 - e**2)
+        n = np.sqrt(mu / a**3)
     
-        xper = a * (cos(EA) - e)
-        yper = b * sin(EA)
+        xper = a * (np.cos(EA) - e)
+        yper = b * np.sin(EA)
     
-        xdotper = -(a * n * sin(EA)) / (1 - e * cos(EA))
-        ydotper = (b * n * cos(EA)) / (1 - e * cos(EA))
+        xdotper = -(a * n * np.sin(EA)) / (1 - e * np.cos(EA))
+        ydotper = (b * n * np.cos(EA)) / (1 - e * np.cos(EA))
     else: #If the orbit is a hyperbola
-        b = -a * sqrt(e**2 - 1)
-        n = sqrt(-mu / a**3)
+        b = -a * np.sqrt(e**2 - 1)
+        n = np.sqrt(-mu / a**3)
         
         # Calculate the denominator for the hyperbolic case
-        dNdzeta = e * (1 + tan(EA)**2) - (1 / 2 + 1 / 2 * tan(1 / 2 * EA + 1 / 4 * pi)**2) / tan(1 / 2 * EA + 1 / 4 * pi)
+        dNdzeta = e * (1 + np.tan(EA)**2) - (1 / 2 + 1 / 2 * np.tan(1 / 2 * EA + 1 / 4 * np.pi)**2) / np.tan(1 / 2 * EA + 1 / 4 * pi)
         
-        xper = a / cos(EA) - a * e
-        yper = b * tan(EA)
+        xper = a / np.cos(EA) - a * e
+        yper = b * np.tan(EA)
         
-        xdotper = a * tan(EA) / cos(EA) * n / dNdzeta
-        ydotper = b / cos(EA)**2 * n / dNdzeta
+        xdotper = a * np.tan(EA) / np.cos(EA) * n / dNdzeta
+        ydotper = b / np.cos(EA)**2 * n / dNdzeta
     
     
     # Rotation matrix for converting orbital elements to initial conditions
     R = np.zeros((3, 3))
-    R[0, 0] = cos(omg) * cos(omp) - sin(omg) * sin(omp) * cos(i)
-    R[0, 1] = -cos(omg) * sin(omp) - sin(omg) * cos(omp) * cos(i)
-    R[0, 2] = sin(omg) * sin(i)
-    R[1, 0] = sin(omg) * cos(omp) + cos(omg) * sin(omp) * cos(i)
-    R[1, 1] = -sin(omg) * sin(omp) + cos(omg) * cos(omp) * cos(i)
-    R[1, 2] = -cos(omg) * sin(i)
-    R[2, 0] = sin(omp) * sin(i)
-    R[2, 1] = cos(omp) * sin(i)
-    R[2, 2] = cos(i)
+    R[0, 0] = np.cos(omg) * np.cos(omp) - np.sin(omg) * np.sin(omp) * np.cos(i)
+    R[0, 1] = -np.cos(omg) * np.sin(omp) - np.sin(omg) * np.cos(omp) * np.cos(i)
+    R[0, 2] = np.sin(omg) * np.sin(i)
+    R[1, 0] = np.sin(omg) * np.cos(omp) + np.cos(omg) * np.sin(omp) * np.cos(i)
+    R[1, 1] = -np.sin(omg) * np.sin(omp) + np.cos(omg) * np.cos(omp) * np.cos(i)
+    R[1, 2] = -np.cos(omg) * np.sin(i)
+    R[2, 0] = np.sin(omp) * np.sin(i)
+    R[2, 1] = np.cos(omp) * np.sin(i)
+    R[2, 2] = np.cos(i)
     
     r0 = R @ np.array([xper, yper, 0]).reshape((3, 1)) # Position vector
     v0 = R @ np.array([xdotper, ydotper, 0]).reshape((3, 1)) # Velocity vector
@@ -431,11 +431,11 @@ def lambertI(r1:np.ndarray,
     # Working with non-dimensional radii and time-of-flight.
     r1 = r1 / R
     r2 = r2 / R
-    t = t / T
+    tn = t / T
     
     # Evaluation of the relevant geometry parameters in non-dimensional units.
     r2mod = np.linalg.norm(r2)
-    theta = np.acos(np.dot(r1.T, r2).flatten()[0] / r2mod)
+    theta = np.arccos(np.dot(r1.T, r2).flatten()[0] / r2mod)
     
     # If lw is true, set theta to its complementary angle.
     if lw:
@@ -455,15 +455,15 @@ def lambertI(r1:np.ndarray,
         inn2 = 0.5233; # Second guess point
         x1 = np.log(1 + inn1)
         x2 = np.log(1 + inn2)
-        y1 = np.log(x2tof(inn1, s, c, lw, N)) - np.log(t)
-        y2 = np.log(x2tof(inn2, s, c, lw, N)) - np.log(t)
+        y1 = np.log(x2tof(inn1, s, c, lw, N)) - np.log(tn)
+        y2 = np.log(x2tof(inn2, s, c, lw, N)) - np.log(tn)
         
         # Newton iterations
         err = 1
         while err > tol and  y1 != y2:
             iterr += 1
             xnew = (x1 * y2 - y1 * x2) / (y2 - y1)
-            ynew = np.log(x2tof(np.exp(xnew) - 1, s, c, lw, N)) - np.log(t)
+            ynew = np.log(x2tof(np.exp(xnew) - 1, s, c, lw, N)) - np.log(tn)
             x1 = x2
             y1 = y2
             x2 = xnew
@@ -482,47 +482,47 @@ def lambertI(r1:np.ndarray,
 
         x1 = np.tan(inn1 * np.pi / 2)
         x2 = np.tan(inn2 * np.pi / 2)
-        y1 = x2tof(inn1, s, c, lw, N) - t
-        y2 = x2tof(inn2, s, c, lw, N) - t
+        y1 = x2tof(inn1, s, c, lw, N) - tn
+        y2 = x2tof(inn2, s, c, lw, N) - tn
         
         err = 1
         while err > tol and iterr < 60 and y1 != y2:
             iterr +=  1
             xnew = (x1 * y2 - y1 * x2) / (y2 - y1)
-            ynew = x2tof(np.atan(xnew) * 2 / np.pi, s, c, lw, N) - t
+            ynew = x2tof(np.arctan(xnew) * 2 / np.pi, s, c, lw, N) - tn
             x1 = x2
             y1 = y2
             x2 = xnew
             y2 = ynew
             err = np.abs(x1 - xnew)
 
-        x = np.atan(xnew) * 2 / np.pi
+        x = np.arctan(xnew) * 2 / np.pi
     
     
     a = am / (1 - x**2) # Solution semimajor axis
     
     # For ellipse, calculate beta, alfa, psi, and eta.
     if x < 1:
-        beta = 2 * np.asin(np.sqrt((s - c) / (2 * a)))
+        beta = 2 * np.arcsin(np.sqrt((s - c) / (2 * a)))
         if lw:
             beta = -beta
-        alfa = 2 * np.acos(x)
+        alfa = 2 * np.arccos(x)
         psi = (alfa - beta) / 2
         eta2 = 2 * a * np.sin(psi)**2 / s
         eta = np.sqrt(eta2)
     else:
         # For hyperbola, calculate beta, alfa, psi, and eta.
-        beta = 2 * np.asinh(np.sqrt((c - s) / (2 * a)))
+        beta = 2 * np.arcsinh(np.sqrt((c - s) / (2 * a)))
         if lw:
             beta = -beta
         
-        alfa = 2 * np.acosh(x)
+        alfa = 2 * np.arccosh(x)
         psi = (alfa - beta) / 2
         eta2 = -2 * a * np.sinh(psi)**2 / s
         eta = np.sqrt(eta2)
     
     
-    p = r2mod / am / eta2 * np.sin(theta / 2)**2; # Parameter of the solution
+    p = r2mod / am / eta2 * np.sin(theta / 2)**2 # Parameter of the solution
     sigma1 = 1 / eta / np.sqrt(am) * (2 * lambdda * am - (lambdda + x * eta))
     ih = vers(vett(r1, r2).T) # Normalized initial unit vector
     
@@ -550,14 +550,14 @@ def x2tof(x, s, c, lw, N):
     am = s / 2
     a = am / (1 - x**2)
     if x < 1: # Ellipse
-        beta = 2 * np.asin(np.sqrt((s - c) / (2 * a)))
+        beta = 2 * np.arcsin(np.sqrt((s - c) / (2 * a)))
         if lw:
             beta = -beta
         
-        alfa = 2 * np.acos(x)
+        alfa = 2 * np.arccos(x)
     else: #Hyperbola
-        alfa = 2 * np.acosh(x)
-        beta = 2 * np.asinh(np.sqrt((s - c) / (-2 * a)))
+        alfa = 2 * np.arccosh(x)
+        beta = 2 * np.arcsinh(np.sqrt((s - c) / (-2 * a)))
         if lw:
             beta = -beta
 
@@ -582,7 +582,7 @@ def vers(V:np.ndarray)->np.ndarray:
 
 def vett(r1:np.ndarray, r2:np.ndarray)->np.ndarray:
     r"""Calculate the vector between two points."""
-    ansd = np.linalg.cross(r1.ravel(), r2.ravel()) # Calculate the cross product of r1 and r2
+    ansd = np.cross(r1.ravel(), r2.ravel()) # Calculate the cross product of r1 and r2
 
     return ansd.reshape((3,1)) # Reshape the result to a column vector
 
@@ -678,9 +678,10 @@ def pleph_an(mjd2000, planet):
     # Convert the units of planetary parameters
     E[0] = E[0] * KM
     for ii in range(2,6):
-        E[ii] = E[ii] * RAD
+        E[ii] = np.deg2rad( E[ii] )
 
-    E[5] = np.remainder(E[5], 2 * np.pi)
+    #E[5] = np.remainder(E[5], 2 * np.pi)
+    E[5] = np.mod(E[5], 2 * np.pi)
 
     # Calculate the eccentric anomaly (EccAnom) using M2E function
     EccAnom = M2E(E[5], E[1])
@@ -704,7 +705,6 @@ def conversion(E:np.ndarray):
     - v : `numpy.ndarray`: Velocity vector.
     """
 
-    from math import sin, cos, sqrt
     # Extract orbital elements from the input vector E
     E = E.ravel().tolist()
     a = E[0];   # Semi-major axis
@@ -715,28 +715,28 @@ def conversion(E:np.ndarray):
     EA = E[5];  # Eccentric anomaly (E)
 
     # Calculate parameters needed for conversion
-    b = a * sqrt(1 - e**2); # Semi-minor axis
-    n = sqrt(MU_SUN / a**3); # Mean motion
+    b = a * np.sqrt(1 - e**2); # Semi-minor axis
+    n = np.sqrt(MU_SUN / a**3); # Mean motion
 
     # Perifocal coordinates and velocities
-    xper = a * (cos(EA) - e)
-    yper = b * sin(EA)
+    xper = a * (np.cos(EA) - e)
+    yper = b * np.sin(EA)
 
-    xdotper = -(a * n * sin(EA)) / (1 - e * cos(EA))
-    ydotper = (b * n * cos(EA)) / (1 - e * cos(EA))
+    xdotper = -(a * n * np.sin(EA)) / (1 - e * np.cos(EA))
+    ydotper = (b * n * np.cos(EA)) / (1 - e * np.cos(EA))
 
     R = np.zeros((3, 3)) # Initialize the rotation matrix
 
     # Transformation matrix from perifocal to ECI (Earth-Centered Inertial) frame
-    R[0,0] = cos(omg) * cos(omp) - sin(omg) * sin(omp) * cos(i)
-    R[0,1] = -cos(omg) * sin(omp) - sin(omg) * cos(omp) * cos(i)
-    R[0,2] = sin(omg) * sin(i)
-    R[1, 0] = sin(omg) * cos(omp) + cos(omg) * sin(omp) * cos(i)
-    R[1, 1] = -sin(omg) * sin(omp) + cos(omg) * cos(omp) * cos(i)
-    R[1, 2] = -cos(omg) * sin(i)
-    R[2, 0] = sin(omp) * sin(i)
-    R[2, 1] = cos(omp) * sin(i)
-    R[2, 2] = cos(i)
+    R[0,0] = np.cos(omg) * np.cos(omp) - np.sin(omg) * np.sin(omp) * np.cos(i)
+    R[0,1] = -np.cos(omg) * np.sin(omp) - np.sin(omg) * np.cos(omp) * np.cos(i)
+    R[0,2] = np.sin(omg) * np.sin(i)
+    R[1, 0] = np.sin(omg) * np.cos(omp) + np.cos(omg) * np.sin(omp) * np.cos(i)
+    R[1, 1] = -np.sin(omg) * np.sin(omp) + np.cos(omg) * np.cos(omp) * np.cos(i)
+    R[1, 2] = -np.cos(omg) * np.sin(i)
+    R[2, 0] = np.sin(omp) * np.sin(i)
+    R[2, 1] = np.cos(omp) * np.sin(i)
+    R[2, 2] = np.cos(i)
 
     # Convert perifocal coordinates to ECI coordinates
     r = R @ np.array([xper, yper,0]).reshape((3, 1))
@@ -758,14 +758,17 @@ def M2E(M, e):
     """
     i = 0
     tol = 1e-10
-    err = 1
+    err = 1.0
     E = M + e * np.cos(M) # Initial guess for E
 
     # Iteratively improve the value of E using Newton-Raphson method
     while err > tol and i < 100:
         i += 1
-        Enew = E - (E - e * np.sin(E) - M) / (1 - e * np.cos(E))
-        err = np.abs(E - Enew)
+        denom = (1 - e * np.cos(E))
+        if denom == 0:
+            break
+        Enew = E - (E - e * np.sin(E) - M) / denom
+        err = abs(E - Enew)
         E = Enew
     
     return E
@@ -797,7 +800,6 @@ def E2M(E:np.ndarray, e:float):
 
 def CUSTOMeph(jd, epoch, keplerian, flag):
     
-    from math import remainder, sqrt, sin, cos, pi
     global AU #ok<GVMIS>
     
     a = keplerian(1) * AU; # Semi-major axis in km
@@ -810,15 +812,15 @@ def CUSTOMeph(jd, epoch, keplerian, flag):
     jdepoch = mjd2jed(epoch); # Convert the epoch from MJD to Julian Ephemeris Date (JED)
     DT = (jd - jdepoch) * 60 * 60 * 24; # Time difference between JD and epoch in seconds
 
-    n = sqrt(MU_SUN / a^3); # Mean motion (angular speed) in rad/s
-    M = M / 180 * pi;      # Convert mean anomaly to radians
+    n = np.sqrt(MU_SUN / a**3); # Mean motion (angular speed) in rad/s
+    M = np.deg2rad(M) ;      # Convert mean anomaly to radians
     M = M + n * DT;        # Calculate the mean anomaly at the given JD
-    M = np.remainder(M, 2 * pi);    # Wrap the mean anomaly to the range [0, 2*pi]
+    M = np.remainder(M, 2 * np.pi);    # Wrap the mean anomaly to the range [0, 2*pi]
 
     E = M2E(M, e); # Calculate the eccentric anomaly from the mean anomaly
 
     # Convert the Keplerian orbital elements to position and velocity vectors
-    [r, v] = par2IC([a, e, i/180*pi, W/180*pi, w/180*pi, E], MU_SUN);
+    r, v = par2IC([a, e, np.deg2rad(i), np.deg2rad(W), np.deg2rad(w), E], MU_SUN)
 
     if flag != 1:
         r = r / AU; # Convert position from km to AU
@@ -840,18 +842,18 @@ def mjd2jed(mjd):
 if __name__ == "__main__":
     # Example normalized input (all values in [0,1])
     #x = np.random.rand(25)
-    # x = np.asarray([2100, 3.27500000000000, 0.500000000000000, 0.500000000000000,
-    #                 300, 300, 300, 300, 300, 350, 
-    #                 0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000,
-    #                     	0.500000000000000,	0.500000000000000,	3.55000000000000,	3.55000000000000,
-    #                             	3.52500000000000,	3.52500000000000,	3.52500000000000,
-    #                                     	0,	0,	0,	0,	0]).ravel()
+    x = np.asarray([2100, 3.27500000000000, 0.500000000000000, 0.500000000000000,
+                    300, 300, 300, 300, 300, 350, 
+                    0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000,
+                        	0.500000000000000,	0.500000000000000,	3.55000000000000,	3.55000000000000,
+                                	3.52500000000000,	3.52500000000000,	3.52500000000000,
+                                        	0,	0,	0,	0,	0]).ravel()
     
-    x = np.asarray([1966.66666666667, 3.27500000000000,	0.500000000000000,	0.500000000000000,
-                    	300, 300,	300,	300,	300,	350,
-                            	0.500000000000000,	0.500000000000000,	0.500000000000000,	0.500000000000000,
-                                    	0.500000000000000,	0.500000000000000,	3.55000000000000,	3.55000000000000,
-                                            	3.52500000000000,	3.52500000000000,	3.52500000000000,
-                                                    	0,	0,	0,	0,	0]).ravel()
+    # x = np.asarray([1966.66666666667, 3.27500000000000,	0.500000000000000,	0.500000000000000,
+    #                 	300, 300,	300,	300,	300,	350,
+    #                         	0.500000000000000,	0.500000000000000,	0.500000000000000,	0.500000000000000,
+    #                                 	0.500000000000000,	0.500000000000000,	3.55000000000000,	3.55000000000000,
+    #                                         	3.52500000000000,	3.52500000000000,	3.52500000000000,
+    #                                                 	0,	0,	0,	0,	0]).ravel()
     cost = Spacecraft_Trajectory_OptimizationC1(x)
     print("Delta-V cost:", cost)

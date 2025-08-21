@@ -1,7 +1,7 @@
 import numpy as np
 from copy import deepcopy
 from typing import List, Tuple, Union, Optional
-from .Spacecraft_Trajectory_OptimizationC1 import pleph_an, propagateKEP, vers, vett, lambertI, IC2par, ni2E
+from Problems.Spacecraft_Trajectory_OptimizationC1 import pleph_an, propagateKEP, vers, vett, lambertI, IC2par, ni2E
 
 # Constants
 
@@ -55,7 +55,7 @@ def get_xl(n:int)->np.ndarray:
           30,400,800,0.01,0.01,
           0.01,0.01,0.01,1.05,1.05,
           1.15,1.7,-np.pi,-np.pi,-np.pi,-np.pi]
-    return np.asarray(xl)
+    return np.asarray(xl,dtype=np.longdouble)
 
 def get_xu(n:int)->np.ndarray:
     xu = [0,5,1,1,400,
@@ -63,7 +63,7 @@ def get_xu(n:int)->np.ndarray:
           0.9,0.9,0.9,0.9,
           6,6,6.5,291,np.pi,np.pi,
           np.pi,np.pi]
-    return np.asarray(xu)
+    return np.asarray(xu,dtype=np.longdouble)
 
 def mga_dsm(t:np.ndarray)->float:
     sequence = [3,2,2,3,5,6]
@@ -154,12 +154,12 @@ def mga_dsm(t:np.ndarray)->float:
         
     
     
-    vtemp= np.linalg.cross(rr[:,0],vv[:,0]).flatten()
+    vtemp= np.cross(rr[:,0],vv[:,0]).flatten()
     iP1= vv[:,0]/np.linalg.norm(vv[:,0])
     zP1= vtemp/np.linalg.norm(vtemp)
-    jP1= np.linalg.cross(zP1,iP1)
+    jP1= np.cross(zP1,iP1)
     theta=2*np.pi*udir;         # See Picking a Point on a Sphere
-    phi=np.acos(2*vdir-1)-np.pi/2; # In this way: -pi/2<phi<pi/2 so phi can be used as out-of-plane rotation
+    phi=np.arccos(2*vdir-1)-np.pi/2; # In this way: -pi/2<phi<pi/2 so phi can be used as out-of-plane rotation
     vinf=VINF*(np.cos(theta)*np.cos(phi)*iP1+np.sin(theta)*np.cos(phi)*jP1+np.sin(phi)*zP1)
 
     v_sc_pl_in = np.zeros_like(vv) # Spacecraft absolute incoming velocity at P1 (km/s)
@@ -196,7 +196,7 @@ def mga_dsm(t:np.ndarray)->float:
     for i in range(N-2):
         v_rel_in:np.ndarray=v_sc_pl_in[:,i+1]-vv[:,i+1]
         e=1+rp[i]/mu_vec[i+1]*np.dot(v_rel_in.T,v_rel_in) #ok<MHERM>
-        beta_rot=2*np.asin(1/e) #velocity rotation
+        beta_rot=2*np.arcsin(1/e) #velocity rotation
         ix=v_rel_in/np.linalg.norm(v_rel_in)
         iy=vett(ix,vv[:,i+1]/np.linalg.norm(vv[:,i+1])).T
         iy=iy/np.linalg.norm(iy)
@@ -236,7 +236,7 @@ def mga_dsm(t:np.ndarray)->float:
     elif problem['objective']['type'] =='time to AUs':  # No DVarr is considered
         DVarr = 0
     
-    DV[-1]=DVarr
+    DV=np.hstack((DV,DVarr))
     
     if problem['objective']['type'] =='gtoc1':
         DVtot=np.sum(DV[0:nn-2])
@@ -325,7 +325,7 @@ def mga_dsm(t:np.ndarray)->float:
         # Evaluate the state of the spacecraft after the last fly-by
         v_rel_in=v_sc_pl_in[:,nn-1]-vv[:,nn-1]
         e=1+rp[nn-2]/mu_vec[nn-1]*np.dot(v_rel_in.T,v_rel_in)#ok<MHERM>
-        beta_rot=2*np.asin(1/e);              # velocity rotation
+        beta_rot=2*np.arcsin(1/e);              # velocity rotation
         ix=v_rel_in/np.linalg.norm(v_rel_in)
         # ix=r_rel_in/norm(v_rel_in);  % activating this line and disactivating the one above
         #  shifts the singularity for r_rel_in parallel to v_rel_in
@@ -335,10 +335,10 @@ def mga_dsm(t:np.ndarray)->float:
         iVout = np.cos(beta_rot) * ix + np.cos(gamma[nn-2])*np.sin(beta_rot) * iy + np.sin(gamma[nn-2])*np.sin(beta_rot) * iz
         v_rel_out=np.linalg.norm(v_rel_in)*iVout
         v_sc_pl_out[:,nn-1]=vv[:,nn-1]+v_rel_out
-        t = time2distance(rr[:,nn-1]/AU,v_sc_pl_out[:,nn-1]/V,AUdist);
+        t = time2distance(rr[:,nn-1]/AU,v_sc_pl_out[:,nn-1]/V,AUdist)
         DVpen=0
         if np.sum(DVvec)>DVtotal:
-            DVpen=DVpen+(np.sum(DVvec)-DVtotal);
+            DVpen=DVpen+(np.sum(DVvec)-DVtotal)
         
         if np.sum(DVvec[1:])>DVonboard:
             DVpen=DVpen+(np.sum(DVvec[1:])-DVonboard)
@@ -352,11 +352,14 @@ def mga_dsm(t:np.ndarray)->float:
     return J
 
 
-def time2distance(r0:np.ndarray, v0:np.ndarray, rtarget:float):
+def time2distance(r0:np.ndarray, 
+                  v0:np.ndarray, 
+                  rtarget:float):
+    
     r0norm = np.linalg.norm(r0)
     if r0norm < rtarget:
         out = np.sign(np.dot(r0.T,v0))
-        E = IC2par(r0, v0, 1)
+        E = IC2par(r0, v0, 1.0)
         a = E[0]; e = E[1]; E0 = E[5]; p = a * (1 - e**2)
         
         # If the solution is an ellipse 
@@ -366,7 +369,8 @@ def time2distance(r0:np.ndarray, v0:np.ndarray, rtarget:float):
                 t = np.nan # Target distance is unreachable.
             else:
                 # Find the anomaly where the target distance is reached.
-                ni = np.acos((p/rtarget - 1) / e); # in the range 0 to pi
+                #ni = np.arccos((p/rtarget - 1) / e); # in the range 0 to pi
+                ni = np.arccos(np.clip((p / rtarget - 1) / e, -1.0, 1.0))
                 Et = ni2E(ni, e); # in the range 0 to pi
                 if out == 1:
                     t = a**(3/2) * (Et - e * np.sin(Et) - E0 + e * np.sin(E0))
@@ -376,7 +380,7 @@ def time2distance(r0:np.ndarray, v0:np.ndarray, rtarget:float):
                 
             
         else: # The solution is a hyperbola
-            ni = np.acos((p/rtarget - 1) / e); # in the range 0 to pi
+            ni = np.arccos((p/rtarget - 1) / e); # in the range 0 to pi
             Et = ni2E(ni, e); # in the range 0 to pi
             if out == 1:
                 t = (-a)**(3/2) * (e * np.tan(Et) - np.log(np.tan(Et/2 + np.pi/4)) - e * np.tan(E0) + np.log(np.tan(E0/2 + np.pi/4)))
@@ -385,7 +389,7 @@ def time2distance(r0:np.ndarray, v0:np.ndarray, rtarget:float):
                 t = (-a)**(3/2) * (e * np.tan(Et) - np.log(np.tan(Et/2 + np.pi/4)) + e * np.tan(E0) - np.log(np.tan(E0/2 + np.pi/4)))
 
     else:
-        t = 12; # Arbitrary value when r0norm >= rtarget.
+        t = 12.0 # Arbitrary value when r0norm >= rtarget.
 
     return t
 
@@ -402,10 +406,24 @@ if __name__ == "__main__":
     #                             	3.52500000000000,	3.52500000000000,	3.52500000000000,
     #                                     	0,	0,	0,	0,	0]).ravel()
     
-    x = np.asarray([-500, 4, 0.500000000000000, 0.500000000000000,
-                    250, 300, 165, 1000, 1500,
-                    0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000,
-                    0.455000000000000, 3.52500000000000, 3.52500000000000, 3.82500000000000,
-                    146.350000000000, 0, 0, 0, 0]).ravel()
+    # x = np.asarray([-500, 4, 0.500000000000000, 0.500000000000000,
+    #                250, 300, 165, 1000, 1500,
+    #                0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000,
+    #                0.455000000000000, 3.52500000000000, 3.52500000000000, 3.82500000000000,
+    #                146.350000000000, 0, 0, 0, 0]).ravel()
+
+    #x = np.asarray([-833.333333333333, 4, 0.500000000000000, 0.500000000000000, 250, 300, 165, 1000, 1500, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 3.52500000000000, 3.52500000000000, 3.82500000000000, 146.350000000000, 0, 0, 0, 0]).ravel()
+
+    #x = np.asarray([-166.666666666667, 4, 0.500000000000000, 0.500000000000000, 250, 300, 165, 1000, 1500, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 3.52500000000000, 3.52500000000000, 3.82500000000000, 146.350000000000, 0, 0, 0, 0]).ravel()
+
+    # x = np.asarray([
+    #     -500, 3.33333333333333, 0.5, 0.5, 250, 300, 165, 1000, 1500,
+    #     0.455, 0.455, 0.455, 0.455, 0.455,
+    #     3.525, 3.525, 3.825, 146.35,
+    #     0, 0, 0, 0
+    # ]).ravel()
+
+    x = np.asarray([-500,4,5.000000e-01,5.000000e-01,250,1.666667e+02,2.550000e+02,600,1500,4.550000e-01,4.550000e-01,4.550000e-01,4.550000e-01,4.550000e-01,3.525000e+00,5.175000e+00,3.825000e+00,2.427833e+02,0,0,0,2.094395e+00])
+
     cost = Spacecraft_Trajectory_OptimizationC2(x)
     print("Delta-V cost:", cost)

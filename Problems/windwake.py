@@ -4,15 +4,14 @@ from typing import Union
 import json
 
 try:
+    import floris
     import floris.tools as wfct
-except:
-    raise ModuleNotFoundError("floris Tools is not installed")
+except ImportError:
+    raise ModuleNotFoundError("floris (>=2.5.2) is not installed")
 else:
-    ### TODO: Improve this line
-    ### The next line is a 'mock test' which 
-    import floris as florrrrrriisssss
-    if str(florrrrrriisssss.__version__) != "2.5.2":
-        raise ModuleNotFoundError("Floris version must be 2.5.2")
+    if str(floris.__version__) != "2.5.2":
+        raise ModuleNotFoundError("floris version must be 2.5.2")
+
 
 
 #eee = FlorisModel.get_defaults()
@@ -26,6 +25,7 @@ class WindWakeLayout:
                  width=None, 
                  height=None, 
                  n_samples:int=5):
+        
         self.file = file
         self.wind_seed = wind_seed
         self.n_turbines = n_turbines
@@ -34,13 +34,16 @@ class WindWakeLayout:
         self.height = height if height is not None else 333.33 * n_turbines
         # How many times to sample the matrix. Default is to use a fixed sample.
         self.n_samples = n_samples
-        self.wind_rng = np.random.RandomState(wind_seed)
+        #self.wind_rng = np.random.RandomState(wind_seed)
+        self.wind_rng:np.random.Generator = np.random.default_rng(seed=wind_seed)
         self.wd, self.ws, self.freq = self._gen_random_wind()
         # self.loggerclass = logging.getLoggerClass()
         self.fi = wfct.floris_interface.FlorisInterface(self.file)
         # Set number of turbines
-        rand_layout_x = np.random.uniform(0.0, self.width, size=n_turbines)
-        rand_layout_y = np.random.uniform(0.0, self.height, size=n_turbines)
+        #rand_layout_x = np.random.uniform(0.0, self.width, size=n_turbines)
+        #rand_layout_y = np.random.uniform(0.0, self.height, size=n_turbines)
+        rand_layout_x = self.wind_rng.uniform(0.0, self.width, size=n_turbines)
+        rand_layout_y = self.wind_rng.uniform(0.0, self.height, size=n_turbines)
 
         self.fi.reinitialize_flow_field(layout_array=(rand_layout_x, rand_layout_y))
 
@@ -56,8 +59,8 @@ class WindWakeLayout:
     def _gen_random_wind(self):
         rng = self.wind_rng
         wd = np.arange(0.0, 360.0, 5.0)
-        ws = 8.0 + rng.randn(len(wd)) * 0.5
-        freq = np.abs(np.sort(rng.randn(len(wd))))
+        ws = 8.0 + rng.standard_normal(len(wd)) * 0.5
+        freq = np.abs(np.sort(rng.standard_normal(len(wd))))
         freq = freq / freq.sum()
         return wd, ws, freq
 
@@ -75,7 +78,7 @@ class WindWakeLayout:
             obj = 0.0
             for _ in range(self.n_samples):
                 # Resample wind speed
-                self.ws = 8.0 + self.wind_rng.randn(len(self.wd)) * 0.5
+                self.ws = 8.0 + self.wind_rng.standard_normal(len(self.wd)) * 0.5
                 self.lo = wfct.optimization.scipy.layout.LayoutOptimization(self.fi, self.boundaries, self.wd, self.ws, self.freq, self.aep_initial)
                 obj += self.lo._AEP_layout_opt(x)
             obj = obj / self.n_samples
@@ -97,3 +100,18 @@ class WindWakeLayout:
 
     def __str__(self):
         return f"WindWakeLayout(file={self.file},n_turbines={self.n_turbines},width={self.width},height={self.height},wind_seed={self.wind_seed})"
+    
+
+
+if __name__ == "__main__":
+    # Example usage
+    layout = WindWakeLayout(n_turbines=3, wind_seed=0, n_samples=5)
+    #x = np.asarray([0.166666666666667, 0.833333333333333, 0.500000000000000, 0.166666666666667, 0.833333333333333, 0.833333333333333]).ravel()  # Example input
+    #x = np.asarray([0.166666666666667, 0.833333333333333, 0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000]).ravel()  # Example input
+    x = np.asarray([[0.166666666666667,0.831910785957425,
+0.500000000000000,
+0.166666666666667,
+0.833333333333333,
+0.500000000000000]]).ravel()  # Example input
+    print("Objective value:", layout.evaluate(x))
+
