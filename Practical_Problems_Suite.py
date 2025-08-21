@@ -12,6 +12,7 @@ class Practical_Problem(ioh.iohcpp.problem.RealSingleObjective):
    
     _actual_lower_bound:np.ndarray = np.asarray([])
     _actual_upper_bound:np.ndarray = np.asarray([])
+    _name = ""
 
     def __init__(self,  
                  n_variables:int,
@@ -30,11 +31,10 @@ class Practical_Problem(ioh.iohcpp.problem.RealSingleObjective):
 
         self._set_bounds(n_variables)
 
+        # Set a random optimum
         optimum = ioh.iohcpp.RealSolution([0]* n_variables, 0)
 
-
-        
-        super().__init__(self._name, n_variables, 1121, False, bounds, [], optimum)
+        super().__init__(self._name, n_variables, prob_id, True, bounds, [], optimum)
         self.set_id = int(prob_id)
     
     @abstractmethod
@@ -60,7 +60,7 @@ class Practical_Problem(ioh.iohcpp.problem.RealSingleObjective):
             factor = (x[ii]+5)/10
             x_mod[ii] = factor*(self._actual_upper_bound[ii] - self._actual_lower_bound[ii]) + self._actual_lower_bound[ii]
         
-        return x_mod
+        return x_mod.ravel()
     
     @abstractmethod
     def evaluate(self, x:Union[np.ndarray,List[float]])->np.ndarray:
@@ -194,8 +194,6 @@ class Frequency_modulated_sound_waves(Practical_Problem):
 
 class Lennard_Jones_Potential(Practical_Problem):
 
-    
-
     # Call the superclass
     def __init__(self, n_variables):
         self._name = "Lennard_Jones_Potential"
@@ -255,7 +253,7 @@ class Spacecraft_trajectory_optimizationC2(Practical_Problem):
     def __init__(self, n_variables):
         self._name = "Spacecraft_Trajectory_OptimizationC2"
         super().__init__(n_variables,1127)
-        raise NotImplementedError()
+        
     
     def _set_bounds(self,nn:int)->None:
         if nn ==22:
@@ -338,7 +336,8 @@ class Tersoff_potentialC1(Practical_Problem):
 class Windwake(Practical_Problem):
 
     # Call the superclass
-    def __init__(self, n_variables, wind_seed:int = 1,
+    def __init__(self, n_variables, 
+                 wind_seed:int = 0,
                  n_samples:int = 5
                  ):
         self._name = "WindWake"
@@ -347,6 +346,9 @@ class Windwake(Practical_Problem):
         # Set hyperparameters of the problem
         self._wind_seed = wind_seed
         self._n_samples = n_samples
+
+        self._layout_object = WindWakeLayout(n_turbines=n_variables//2,wind_seed=self._wind_seed,
+                             n_samples=self._n_samples)
     
     @property
     def wind_seed(self)->int:
@@ -371,10 +373,9 @@ class Windwake(Practical_Problem):
         """
         x_mod = super().evaluate(x)
 
-        obj = WindWakeLayout(n_turbines=int(x_mod.size/2),wind_seed=self._wind_seed,
-                             n_samples=self._n_samples)
+    
 
-        return obj.evaluate(x_mod)
+        return self._layout_object.evaluate(x_mod)
 
 
 
