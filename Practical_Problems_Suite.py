@@ -34,10 +34,19 @@ class Practical_Problem(ioh.iohcpp.problem.RealSingleObjective):
         # Set a random optimum
         optimum = ioh.iohcpp.RealSolution([0]* n_variables, 0)
 
-        super().__init__(self._name, n_variables, prob_id, True, bounds, [], optimum)
-        self.set_id = int(prob_id)
+        super().__init__(name = self._name, 
+                         n_variables=n_variables, 
+                         instance=0, 
+                         is_minimization=True, 
+                         bounds=bounds, 
+                         constraints=[], 
+                         optimum=optimum)
+        
+        # Set the problem id
+        self.set_id(prob_id)
+        
+        #self.meta_data.problem_id = prob_id
     
-    @abstractmethod
     def _set_bounds(self,nn:int)->None:
         r""" 
         Sets the bounds of the actual problem
@@ -62,8 +71,7 @@ class Practical_Problem(ioh.iohcpp.problem.RealSingleObjective):
         
         return x_mod.ravel()
     
-    @abstractmethod
-    def evaluate(self, x:Union[np.ndarray,List[float]])->np.ndarray:
+    def transform(self, x:Union[np.ndarray,List[float]])->np.ndarray:
         r"""
         This overrides the default evaluation function from IOH Experimenter.
 
@@ -83,7 +91,6 @@ class Practical_Problem(ioh.iohcpp.problem.RealSingleObjective):
 
 class Bench_Fun_Eps(Practical_Problem):
 
-    
 
     # Call the superclass
     def __init__(self, n_variables):
@@ -101,13 +108,12 @@ class Bench_Fun_Eps(Practical_Problem):
         r"""
         Returns the function evaluation of the Bench_Fun_Eps problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return bench_fun_eps(x_mod)
 
 class Bench_Fun_Pitz(Practical_Problem):
 
-    
 
     # Call the superclass
     def __init__(self, n_variables):
@@ -125,7 +131,7 @@ class Bench_Fun_Pitz(Practical_Problem):
         r"""
         Returns the function evaluation of the Bench_Fun_Pitz problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return bench_fun_pitz(x_mod)
 
@@ -161,7 +167,7 @@ class Circular_antenna_array(Practical_Problem):
         r"""
         Returns the function evaluation of the Circular Antenna Array problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return Circular_Antenna_Array(x_mod)
     
@@ -188,7 +194,7 @@ class Frequency_modulated_sound_waves(Practical_Problem):
         r"""
         Returns the function evaluation of the Frequency_Modulated_Sound_Waves problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return Frequency_Modulated_Sound_Waves(x_mod)
 
@@ -215,7 +221,7 @@ class Lennard_Jones_Potential(Practical_Problem):
         r"""
         Returns the function evaluation of the Lennard-Jones Potential problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return LJ_potential(x_mod)
 
@@ -241,7 +247,7 @@ class Spacecraft_trajectory_optimizationC1(Practical_Problem):
         r"""
         Returns the function evaluation of the  Spacecraft_Trajectory_OptimizationC1 problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return Spacecraft_Trajectory_OptimizationC1(x_mod)
 
@@ -264,7 +270,7 @@ class Spacecraft_trajectory_optimizationC2(Practical_Problem):
             
             self._actual_upper_bound =np.array([0,5,1,1,400,500,300,1600,2200,0.9,
                                                 0.9,0.9,0.9,0.9,
-                                                6,6,6.5,291,np.pi,np.pi,np.pi,np.pi]).ravel()
+                                                6.0,6.0,6.5,291,np.pi,np.pi,np.pi,np.pi]).ravel()
 
         else:
             raise AttributeError("This problem only allows 22 dimensions")
@@ -273,7 +279,7 @@ class Spacecraft_trajectory_optimizationC2(Practical_Problem):
         r"""
         Returns the function evaluation of the Spacecraft_Trajectory_OptimizationC2 problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return Spacecraft_Trajectory_OptimizationC2(x_mod)
 
@@ -297,7 +303,7 @@ class Spread_spectrum_radar(Practical_Problem):
         r"""
         Returns the function evaluation of the Spread Spectrum Radar problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return Spread_Spectrum_Radar(x_mod)
 
@@ -328,7 +334,7 @@ class Tersoff_potentialC1(Practical_Problem):
         r"""
         Returns the function evaluation of the Tersoff Potential problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
         return Tersoff_PotentialC1(x_mod)
 
@@ -337,8 +343,9 @@ class Windwake(Practical_Problem):
 
     # Call the superclass
     def __init__(self, n_variables, 
-                 wind_seed:int = 0,
-                 n_samples:int = 5
+                 wind_seed:int = 43,
+                 n_samples:int = 5,
+                 plotting:bool=False
                  ):
         self._name = "WindWake"
         super().__init__(n_variables,1130)
@@ -348,7 +355,7 @@ class Windwake(Practical_Problem):
         self._n_samples = n_samples
 
         self._layout_object = WindWakeLayout(n_turbines=n_variables//2,wind_seed=self._wind_seed,
-                             n_samples=self._n_samples)
+                             n_samples=self._n_samples, plotting=plotting)
     
     @property
     def wind_seed(self)->int:
@@ -371,7 +378,7 @@ class Windwake(Practical_Problem):
         r"""
         Returns the function evaluation of the Wind Wake Layout problem
         """
-        x_mod = super().evaluate(x)
+        x_mod = self.transform(x)
 
     
 
@@ -388,8 +395,9 @@ def get_practical_problem(idx:int,
     """
 
     # The kwargs are just meant as add ones for the Wind Layout Optimization
-    wind_seed = int(kwargs.pop('wind_seed',0))
+    wind_seed = int(kwargs.pop('wind_seed',43))
     n_samples = int(kwargs.pop('n_samples',5))
+    plotting = bool(kwargs.pop('plotting',False))
 
     
 
@@ -413,6 +421,7 @@ def get_practical_problem(idx:int,
         return Tersoff_potentialC1(dim)
     elif idx ==1130:
         return Windwake(dim,wind_seed=wind_seed,
-                        n_samples=n_samples)
+                        n_samples=n_samples,
+                        plotting=plotting)
     
     
