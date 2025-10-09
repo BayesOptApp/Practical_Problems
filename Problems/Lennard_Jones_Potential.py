@@ -7,6 +7,8 @@ __author__ = "Ivón Olarte Rodríguez"
 ### Importing libraries
 import numpy as np
 
+DTYPE = np.longdouble
+
 ### ===============================
 ### Lennard-Jones potential
 ### ================================
@@ -31,6 +33,9 @@ def LJ_potential(x:np.ndarray) -> np.ndarray:
 
     # Perform a reshape of the initial array
     x = x.ravel()
+
+    # Convert the design variables
+    x = x.astype(DTYPE)
 
     # Obtain the size of the array
     n = x.size
@@ -86,7 +91,7 @@ def get_lower_bound(nx:int)->np.ndarray:
     for ii in range(3,nx):
         xl[ii] = -4 - (0.25)*((ii-3)/3)
     
-    return xl
+    return xl.astype(DTYPE)
 
 
 def get_upper_bound(nx:int)->np.ndarray:
@@ -110,7 +115,7 @@ def get_upper_bound(nx:int)->np.ndarray:
     for ii in range(3,nx):
         xu[ii] = 4 + (0.25)*((ii-3)/3)
 
-    return xu
+    return xu.astype(DTYPE)
 
 
 

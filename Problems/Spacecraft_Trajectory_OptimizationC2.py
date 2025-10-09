@@ -3,20 +3,23 @@ from copy import deepcopy
 from typing import List, Tuple, Union, Optional
 from Problems.Spacecraft_Trajectory_OptimizationC1 import pleph_an, propagateKEP, vers, vett, lambertI, IC2par, ni2E
 
+
+DTYPE = np.longdouble
+
 # Constants
 
 # Radii of the planets in km
-RPL = [2440,  # Mercury
-        6052,  # Venus
-        6378,  # Earth
-        3397,  # Mars
-        71492,  # Jupiter
-        60330  # Saturn
+RPL = [2440.0,  # Mercury
+        6052.0,  # Venus
+        6378.0,  # Earth
+        3397.0,  # Mars
+        71492.0,  # Jupiter
+        60330.0  # Saturn
         ]
 
 # List of Gravitational parameters and radii for the planets
-MU = [22321, # Mercury
-        324860, # Venus
+MU = [22321.0, # Mercury
+        324860.0, # Venus
             398601.19, # Earth
             42828.3, # Mars
                 126.7e6, # Jupiter
@@ -36,13 +39,15 @@ def Spacecraft_Trajectory_OptimizationC2(x:np.ndarray)->float:
     assert x.ndim < 2, "Input array must be less than two-dimensional."
     assert x.size ==22, "The dimension should be 22"
     # Flatten the array
-    x = x.ravel()
+    x = x.ravel().astype(DTYPE)
+    print(np.array2string(x, precision=10, separator=','))
 
     n = x.size
 
     lb = get_xl(n)
     ub = get_xu(n)
     x = np.abs(ub - lb)*x + lb
+
     
     y = mga_dsm(x)
     if np.isnan(y):
@@ -68,7 +73,7 @@ def get_xu(n:int)->np.ndarray:
 def mga_dsm(t:np.ndarray)->float:
     sequence = [3,2,2,3,5,6]
     problem = {
-        'objective': {'rp': 2640, 'e': 0.704, 'type' :'total DV rndv'}
+        'objective': {'rp': 2640.0, 'e': 0.704, 'type' :'total DV rndv'}
     }
 
     # Extract relevant problem parameters based on the objective type
@@ -95,7 +100,7 @@ def mga_dsm(t:np.ndarray)->float:
     
     N = len(sequence); 
     tof = np.zeros((N-1, )); 
-    alpha = np.zeros_like(tof) 
+    alpha = np.zeros_like(tof); 
     
     # Extract time of flight and DSM fraction from the decision vector
     for i in range(N-1):
@@ -162,10 +167,10 @@ def mga_dsm(t:np.ndarray)->float:
     phi=np.arccos(2*vdir-1)-np.pi/2; # In this way: -pi/2<phi<pi/2 so phi can be used as out-of-plane rotation
     vinf=VINF*(np.cos(theta)*np.cos(phi)*iP1+np.sin(theta)*np.cos(phi)*jP1+np.sin(phi)*zP1)
 
-    v_sc_pl_in = np.zeros_like(vv) # Spacecraft absolute incoming velocity at P1 (km/s)
-    v_sc_pl_out = np.zeros_like(vv) # Spacecraft absolute outgoing velocity at P1 (km/s)
-    v_sc_dsm_in = np.zeros_like(vv) # Spacecraft absolute incoming velocity at P1 (km/s)
-    v_sc_dsm_out = np.zeros_like(vv) # Spacecraft absolute outgoing velocity at P1 (km/s)
+    v_sc_pl_in = np.zeros_like(vv, dtype=DTYPE) # Spacecraft absolute incoming velocity at P1 (km/s)
+    v_sc_pl_out = np.zeros_like(vv, dtype=DTYPE) # Spacecraft absolute outgoing velocity at P1 (km/s)
+    v_sc_dsm_in = np.zeros_like(vv, dtype=DTYPE) # Spacecraft absolute incoming velocity at P1 (km/s)
+    v_sc_dsm_out = np.zeros_like(vv, dtype=DTYPE) # Spacecraft absolute outgoing velocity at P1 (km/s)
 
 
     v_sc_pl_in[:,0]=vv[:,0] # Spacecraft absolute incoming velocity at P1
@@ -175,7 +180,7 @@ def mga_dsm(t:np.ndarray)->float:
     rd = np.zeros_like(rr) # Position vectors of the planets (km)
 
     tDSM[0]=alpha[0]*tof[0]
-    rd[:,0],v_sc_dsm_in[:,0]=propagateKEP(rr[:,0],v_sc_pl_out[:,0],tDSM[0]*24*60*60,MU_SUN)
+    rd[:,0],v_sc_dsm_in[:,0]=propagateKEP(rr[:,0],v_sc_pl_out[:,0],tDSM[0]*24.0*60.0*60.0,MU_SUN)
     lw=vett(rd[:,0],rr[:,1])
     
     lw=np.sign(lw[2])
@@ -189,9 +194,9 @@ def mga_dsm(t:np.ndarray)->float:
                                                  tof[0]*(1-alpha[0])*24*60*60,
                                                  MU_SUN,
                                                  lw)
-    DV=np.zeros((N-1,))
+    DV=np.zeros((N-1,),dtype=DTYPE)
     DV[0]=np.linalg.norm(v_sc_dsm_out[:,0]-v_sc_dsm_in[:,0])
-    tDSM=np.zeros((N-1,))
+    tDSM=np.zeros((N-1,),dtype=DTYPE)
     
     for i in range(N-2):
         v_rel_in:np.ndarray=v_sc_pl_in[:,i+1]-vv[:,i+1]
@@ -201,7 +206,7 @@ def mga_dsm(t:np.ndarray)->float:
         iy=vett(ix,vv[:,i+1]/np.linalg.norm(vv[:,i+1])).T
         iy=iy/np.linalg.norm(iy)
         iz=vett(ix,iy).T
-        iVout = np.cos(beta_rot) * ix + np.cos(gamma[i])*np.sin(beta_rot) * (iy + np.sin(gamma[i])*np.sin(beta_rot) * iz)
+        iVout = np.cos(beta_rot) * ix + np.cos(gamma[i])*np.sin(beta_rot) * iy + np.sin(gamma[i])*np.sin(beta_rot) * iz
         v_rel_out=np.linalg.norm(v_rel_in)*iVout
         v_sc_pl_out[:,i+1]=vv[:,i+1]+v_rel_out
         tDSM[i+1]=alpha[i+1]*tof[i+1]
@@ -239,11 +244,11 @@ def mga_dsm(t:np.ndarray)->float:
     DV=np.hstack((DV,DVarr))
     
     if problem['objective']['type'] =='gtoc1':
-        DVtot=np.sum(DV[0:nn-2])
+        DVtot=np.sum(DV[0:nn-2],dtype=DTYPE)
     elif problem['objective']['type'] =='deflection demo':
-        DVtot=np.sum(DV[0:nn-2])
+        DVtot=np.sum(DV[0:nn-2],dtype=DTYPE)
     else:
-        DVtot=np.sum(DV)
+        DVtot=np.sum(DV,dtype=DTYPE)
     
     DVvec=np.hstack((VINF, DV)).ravel()
 
@@ -412,7 +417,9 @@ if __name__ == "__main__":
     #                0.455000000000000, 3.52500000000000, 3.52500000000000, 3.82500000000000,
     #                146.350000000000, 0, 0, 0, 0]).ravel()
 
-    #x = np.asarray([-833.333333333333, 4, 0.500000000000000, 0.500000000000000, 250, 300, 165, 1000, 1500, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 3.52500000000000, 3.52500000000000, 3.82500000000000, 146.350000000000, 0, 0, 0, 0]).ravel()
+    #x = np.asarray([-833.333333333333, 4, 0.500000000000000, 0.500000000000000, 250, 300, 165, 1000, 1500, 
+    #                0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 3.52500000000000, 
+    #                3.52500000000000, 3.82500000000000, 146.350000000000, 0, 0, 0, 0]).ravel()
 
     #x = np.asarray([-166.666666666667, 4, 0.500000000000000, 0.500000000000000, 250, 300, 165, 1000, 1500, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 0.455000000000000, 3.52500000000000, 3.52500000000000, 3.82500000000000, 146.350000000000, 0, 0, 0, 0]).ravel()
 
@@ -423,7 +430,10 @@ if __name__ == "__main__":
     #     0, 0, 0, 0
     # ]).ravel()
 
-    x = np.asarray([-500,4,5.000000e-01,5.000000e-01,250,1.666667e+02,2.550000e+02,600,1500,4.550000e-01,4.550000e-01,4.550000e-01,4.550000e-01,4.550000e-01,3.525000e+00,5.175000e+00,3.825000e+00,2.427833e+02,0,0,0,2.094395e+00])
+    #x = np.asarray([-500,4,5.000000e-01,5.000000e-01,250,1.666667e+02,2.550000e+02,600,1500,4.550000e-01,4.550000e-01,4.550000e-01,4.550000e-01,
+    #                4.550000e-01,3.525000e+00,5.175000e+00,3.825000e+00,2.427833e+02,0,0,0,2.094395e+00])
+
+    x = np.asarray([-9.5109660418e+02, 3.0978067916e+00, 4.8903395825e-02, 4.8903395825e-02,  1.1467101875e+02, 1.1956135833e+02, 4.3203916873e+01, 4.5868407499e+02,  8.6846475415e+02, 5.3524022284e-02, 5.3524022284e-02, 5.3524022284e-02,  5.3524022284e-02, 5.3524022284e-02, 1.2920718093e+00, 1.2920718093e+00,  1.4116331677e+00, 1.5847752412e+01,-2.8343235555e+00,-2.8343235555e+00, -2.8343235555e+00,-2.8343235555e+00]).ravel()
 
     cost = Spacecraft_Trajectory_OptimizationC2(x)
     print("Delta-V cost:", cost)

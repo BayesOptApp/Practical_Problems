@@ -2,20 +2,22 @@ import numpy as np
 from copy import deepcopy
 from typing import List, Tuple, Union, Optional
 
+DTYPE = np.longdouble
+
 # Constants
 
 # Radii of the planets in km
-RPL = [2440,  # Mercury
-        6052,  # Venus
-        6378,  # Earth
-        3397,  # Mars
-        71492,  # Jupiter
-        60330  # Saturn
+RPL = [2440.0,  # Mercury
+        6052.0,  # Venus
+        6378.0,  # Earth
+        3397.0,  # Mars
+        71492.0,  # Jupiter
+        60330.0  # Saturn
         ]
 
 # List of Gravitational parameters and radii for the planets
-MU = [22321, # Mercury
-        324860, # Venus
+MU = [22321.0, # Mercury
+        324860.0, # Venus
             398601.19, # Earth
             42828.3, # Mars
                 126.7e6, # Jupiter
@@ -36,22 +38,22 @@ AU = 149597870.66 # km
 def get_xl(_):
     r"""Lower bounds for the design variables."""
     return np.array([
-        1900, 2.5, 0, 0,
-        *[100]*6,
-        *[0.01]*6,
+        1900.0, 2.5, 0.0, 0.0,
+       100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
+        0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
         1.1, 1.1, 1.05, 1.05, 1.05,
-        *[-np.pi]*5
-    ]).ravel()
+        -np.pi, -np.pi, -np.pi, -np.pi, -np.pi
+    ]).ravel().astype(DTYPE)
 
 def get_xu(_):
     r"""Upper bounds for the design variables."""
     return np.array([
-        2300, 4.05, 1, 1,
-        *[500]*5, 600,
-        *[0.99]*6,
+        2300.0, 4.05, 1.0, 1.0,
+       500.0, 500.0, 500.0, 500.0, 500.0, 600.0,
+        0.99,0.99,0.99,0.99,0.99,0.99,
         6, 6, 6, 6, 6,
-        *[np.pi]*5
-    ]).ravel()
+        np.pi,np.pi,np.pi,np.pi,np.pi
+    ]).ravel().astype(DTYPE)
 
 def Spacecraft_Trajectory_OptimizationC1(x):
     r"""Objective function for spacecraft trajectory optimization."""
@@ -61,8 +63,8 @@ def Spacecraft_Trajectory_OptimizationC1(x):
     assert x.size >= 3, "Input array must have at least 3 elements."
 
     # Perform a reshape of the initial array
-    x = x.ravel()
-
+    x = x.ravel().astype(DTYPE)
+    #print(np.array2string(x, precision=10, separator=','))
     n = x.size
     if n < 26:
         raise ValueError("Input array must have at least 25 elements.")
@@ -71,7 +73,7 @@ def Spacecraft_Trajectory_OptimizationC1(x):
     x = np.abs(ub - lb) * x + lb
 
     # Compute the function
-    y = mga_dsm(x)
+    y = mga_dsm(x.astype(DTYPE))
     return y if not np.isnan(y) else 1e100
 
 def mga_dsm(t):
@@ -109,11 +111,11 @@ def mga_dsm(t):
         gamma[i] = t[3*nn+i]; # Rotation of the b-plane-component of the swingby outgoing velocity vector
 
     # Calculate positions, velocities, and gravitational constants for the solar system bodies
-    rr = np.zeros((3, nn)) # Position vectors of the planets (km)
-    vv = np.zeros((3, nn)) # Velocity vectors of the planets (km/s)
-    mu_vec = np.zeros((nn, )) # Gravitational parameters of the planets (km^3/s^2)
+    rr = np.zeros((3, nn),dtype=DTYPE) # Position vectors of the planets (km)
+    vv = np.zeros((3, nn),dtype=DTYPE) # Velocity vectors of the planets (km/s)
+    mu_vec = np.zeros((nn, ),dtype=DTYPE) # Gravitational parameters of the planets (km^3/s^2)
     iTime = np.zeros((nn, )) # Time of flight (days)
-    dt = np.zeros((nn, )) # Time of flight (seconds)
+    dt = np.zeros((nn, ),dtype=DTYPE) # Time of flight (seconds)
     seq = np.abs(sequence).tolist() # Sequence of planets (1-indexed)
     tt = deepcopy(tdep) # Departure time (days from the initial epoch)
     dt[0:nn-1] = tof
@@ -134,19 +136,19 @@ def mga_dsm(t):
     for i  in range(nn-2):
         rp[i] = rp_non_dim[i] * RPL[seq[i+1]-1]; # Dimensional flyby radii (i=1 corresponds to the second planet)
     
-    vtemp= np.cross(rr[:,0],vv[:,0])
-    iP1= vv[:,0]/np.linalg.norm(vv[:,0])
-    zP1= vtemp/np.linalg.norm(vtemp)
-    jP1= np.cross(zP1,iP1)
+    vtemp= np.cross(rr[:,0],vv[:,0]) # Normal vector to the orbital plane of the first planet
+    iP1= vv[:,0]/np.linalg.norm(vv[:,0]) # Unit vector in the direction of the velocity of the first planet
+    zP1= vtemp/np.linalg.norm(vtemp) # Unit vector normal to the orbital plane of the first planet
+    jP1= np.cross(zP1,iP1) # Unit vector completing the right-handed reference frame of the first planet
 
     theta=2*np.pi*udir #See Picking a Point on a Sphere
     phi=np.arccos(2*vdir-1)-np.pi/2; # In this way: -pi/2<phi<pi/2 so phi can be used as out-of-plane rotation
     vinf=VINF*(np.cos(theta)*np.cos(phi)*iP1+np.sin(theta)*np.cos(phi)*jP1+np.sin(phi)*zP1)
 
-    v_sc_pl_in = np.zeros_like(vv) # Spacecraft absolute incoming velocity at P1 (km/s)
-    v_sc_pl_out = np.zeros_like(vv) # Spacecraft absolute outgoing velocity at P1 (km/s)
-    v_sc_dsm_in = np.zeros_like(vv) # Spacecraft absolute incoming velocity at P1 (km/s)
-    v_sc_dsm_out = np.zeros_like(vv) # Spacecraft absolute outgoing velocity at P1 (km/s)
+    v_sc_pl_in = np.zeros_like(vv, dtype=DTYPE) # Spacecraft absolute incoming velocity at P1 (km/s)
+    v_sc_pl_out = np.zeros_like(vv,dtype=DTYPE) # Spacecraft absolute outgoing velocity at P1 (km/s)
+    v_sc_dsm_in = np.zeros_like(vv,dtype=DTYPE) # Spacecraft absolute incoming velocity at P1 (km/s)
+    v_sc_dsm_out = np.zeros_like(vv,dtype=DTYPE) # Spacecraft absolute outgoing velocity at P1 (km/s)
 
     v_sc_pl_in[:,0]=vv[:,0] # Spacecraft absolute incoming velocity at P1
     v_sc_pl_out[:,0]=vv[:,0]+vinf # Spacecraft absolute outgoing velocity at P1
@@ -157,7 +159,7 @@ def mga_dsm(t):
     tDSM[0]=alpha[0]*tof[0]
 
 
-    rd[:,0],v_sc_dsm_in[:,0] =propagateKEP(rr[:,0],v_sc_pl_out[:,0],tDSM[0]*24*60*60,MU_SUN)
+    rd[:,0],v_sc_dsm_in[:,0] =propagateKEP(rr[:,0],v_sc_pl_out[:,0],tDSM[0]*24.0*60.0*60.0,MU_SUN)
     lw=vett(rd[:,0],rr[:,1])
     lw=np.sign(lw[2])
     if lw==1:
@@ -228,7 +230,7 @@ def propagateKEP(r0, v0, t, mu)->Tuple[np.ndarray, np.ndarray]:
         # Random rotation matrix to make the Euler angles well defined for retrograde orbits
         DD:np.ndarray = np.asarray([[1.0, 0.0, 0.0],
                                     [ 0.0, 0.0, 1.0],
-                                    [ 0.0, -1.0, 0.0]])
+                                    [ 0.0, -1.0, 0.0]]).astype(DTYPE)
         # Rotate the initial position and velocity vectors
         r0 = np.dot(DD , r0)
         v0 = np.dot(DD , v0)
@@ -267,7 +269,7 @@ def IC2par(r0:np.ndarray,
 
     ### TODO: Check the transpose definition of all the vectors in the original MATLAB code.
     
-    k = np.asarray([0, 0, 1]).reshape((3,1)) # Unit vector in the z-direction (assuming Earth-centered inertial frame)
+    k = np.asarray([0, 0, 1]).reshape((3,1)).astype(DTYPE) # Unit vector in the z-direction (assuming Earth-centered inertial frame)
     h = (vett(r0, v0).T).flatten() # Specific angular momentum vector
     p = np.dot(h , h.T).ravel()[0] / mu; #  Semi-latus rectum
     
@@ -278,7 +280,7 @@ def IC2par(r0:np.ndarray,
     evett = (vett(v0, h).T/ mu - r0 / R0).flatten() # Eccentricity vector
     e = np.dot(evett.T,evett).flatten()[0] #Eccentricity
     
-    E = np.zeros((6, 1)) # Initialize the orbital elements array
+    E = np.zeros((6, 1)).astype(DTYPE) # Initialize the orbital elements array
 
     E[0] = p / (1 - e) # Semi-major axis
     E[1] = np.sqrt(e) # Eccentricity
@@ -397,7 +399,7 @@ def par2IC(E:np.ndarray, mu:float):
     r0 = R @ np.array([xper, yper, 0]).reshape((3, 1)) # Position vector
     v0 = R @ np.array([xdotper, ydotper, 0]).reshape((3, 1)) # Velocity vector
 
-    return r0, v0
+    return r0.astype(dtype=DTYPE), v0.astype(dtype=DTYPE)
 
 
 def lambertI(r1:np.ndarray, 
@@ -571,20 +573,20 @@ def tofabn(sigma, alfa, beta, N):
     else:
         t = -sigma * np.sqrt(-sigma) * ((np.sinh(alfa) - alfa) - (np.sinh(beta) - beta))
     
-    return t
+    return t.astype(DTYPE)
 
 def vers(V:np.ndarray)->np.ndarray:
     r"""Calculate the vector of versors."""
     V = V.ravel() # Flatten the input array
     v = V / np.sqrt(np.dot(V.T, V))
 
-    return v
+    return v.astype(DTYPE)
 
 def vett(r1:np.ndarray, r2:np.ndarray)->np.ndarray:
     r"""Calculate the vector between two points."""
     ansd = np.cross(r1.ravel(), r2.ravel()) # Calculate the cross product of r1 and r2
 
-    return ansd.reshape((3,1)) # Reshape the result to a column vector
+    return ansd.reshape((3,1)).astype(DTYPE) # Reshape the result to a column vector
 
 
 def pleph_an(mjd2000, planet):
@@ -596,7 +598,7 @@ def pleph_an(mjd2000, planet):
     TTT = T * TT
 
     # Planetary parameters based on the input planet
-    E = np.zeros((6,  )) # Initialize the array for planetary parameters
+    E = np.zeros((6,  ), dtype=DTYPE) # Initialize the array for planetary parameters
     if planet ==1:
         E[0] = 0.38709860
         E[1] = 0.205614210 + 0.000020460*T - 0.000000030*TT
@@ -690,7 +692,7 @@ def pleph_an(mjd2000, planet):
     # Calculate the position and velocity vectors (r and v) using the conversion function
     r, v = conversion(E)
 
-    return r.ravel(), v.ravel(), E
+    return r.ravel().astype(DTYPE), v.ravel().astype(DTYPE), E.astype(DTYPE)
 
 def conversion(E:np.ndarray):
     r"""Convert orbital elements to position and velocity vectors.
@@ -759,15 +761,15 @@ def M2E(M, e):
     i = 0
     tol = 1e-10
     err = 1.0
-    E = M + e * np.cos(M) # Initial guess for E
+    E = M + e * np.cos(M, dtype=DTYPE) # Initial guess for E
 
     # Iteratively improve the value of E using Newton-Raphson method
     while err > tol and i < 100:
         i += 1
-        denom = (1 - e * np.cos(E))
+        denom = (1 - e * np.cos(E, dtype=DTYPE))
         if denom == 0:
             break
-        Enew = E - (E - e * np.sin(E) - M) / denom
+        Enew = E - (E - e * np.sin(E,dtype=DTYPE) - M) / denom
         err = abs(E - Enew)
         E = Enew
     
@@ -789,12 +791,12 @@ def E2M(E:np.ndarray, e:float):
     """
     if e < 1:
         # Ellipse case: E is the eccentric anomaly
-        M = E - e * np.sin(E)
+        M = E - e * np.sin(E, dtype=DTYPE)
     else:
         # Hyperbola case: E is the Gudermannian
-        M = e * np.tan(E) - np.log(np.tan(E/2 + np.pi/4))
+        M = e * np.tan(E,dtype=DTYPE) - np.log(np.tan(E/2 + np.pi/4, dtype=DTYPE), dtype=DTYPE)
     
-    return M
+    return M.astype(DTYPE)
 
 
 
@@ -826,7 +828,7 @@ def CUSTOMeph(jd, epoch, keplerian, flag):
         r = r / AU; # Convert position from km to AU
         v = v * 86400 / AU; # Convert velocity from km/s to AU/day
 
-    return r,v 
+    return r.astype( DTYPE),v.astype(DTYPE)
 
 
 def mjd20002jed(mjd2000):
@@ -842,12 +844,12 @@ def mjd2jed(mjd):
 if __name__ == "__main__":
     # Example normalized input (all values in [0,1])
     #x = np.random.rand(25)
-    x = np.asarray([2100, 3.27500000000000, 0.500000000000000, 0.500000000000000,
-                    300, 300, 300, 300, 300, 350, 
-                    0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000,
-                        	0.500000000000000,	0.500000000000000,	3.55000000000000,	3.55000000000000,
-                                	3.52500000000000,	3.52500000000000,	3.52500000000000,
-                                        	0,	0,	0,	0,	0]).ravel()
+    # x = np.asarray([2100, 3.27500000000000, 0.500000000000000, 0.500000000000000,
+    #                 300, 300, 300, 300, 300, 350, 
+    #                 0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000,
+    #                     	0.500000000000000,	0.500000000000000,	3.55000000000000,	3.55000000000000,
+    #                             	3.52500000000000,	3.52500000000000,	3.52500000000000,
+    #                                     	0,	0,	0,	0,	0]).ravel()
     
     # x = np.asarray([1966.66666666667, 3.27500000000000,	0.500000000000000,	0.500000000000000,
     #                 	300, 300,	300,	300,	300,	350,
@@ -855,5 +857,41 @@ if __name__ == "__main__":
     #                                 	0.500000000000000,	0.500000000000000,	3.55000000000000,	3.55000000000000,
     #                                         	3.52500000000000,	3.52500000000000,	3.52500000000000,
     #                                                 	0,	0,	0,	0,	0]).ravel()
+
+    # x = np.asarray([
+    #     2233.33333333333, 3.27500000000000, 0.500000000000000, 0.500000000000000,
+    #     300, 300, 300, 300, 300, 350,
+    #     0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000,
+    #     0.500000000000000, 0.500000000000000,
+    #     3.55000000000000, 3.55000000000000, 3.52500000000000, 3.52500000000000, 3.52500000000000,
+    #     0, 0, 0, 0, 0
+    #]).ravel()
+
+    # x = np.asarray([
+    #     1966.66666666667, 2.75833333333333, 0.500000000000000, 0.500000000000000,
+    #     300, 300, 300, 300, 300, 350,
+    #     0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000,
+    #     0.500000000000000, 0.500000000000000,
+    #     3.55000000000000, 3.55000000000000, 3.52500000000000, 3.52500000000000, 3.52500000000000,
+    #     0, 0, 0, 0, 0
+    # ]).ravel()
+
+    # x = np.asarray([
+    #     1966.66666666667, 3.79166666666667, 0.500000000000000, 0.500000000000000,
+    #     300, 300, 300, 300, 300, 350,
+    #     0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000,
+    #     0.500000000000000, 0.500000000000000,
+    #     3.55000000000000, 3.55000000000000, 3.52500000000000, 3.52500000000000, 3.52500000000000,
+    #     0, 0, 0, 0, 0
+    # ]).ravel()
+
+    x = np.asarray(
+        [ 2.0172770869e+03, 3.7564322868e+00, 2.6368961141e-01, 3.3377618492e-02,
+  2.0433536364e+02, 2.4592428753e+02, 3.2406976354e+02, 1.8130651832e+02,
+  3.1735022170e+02, 3.0638970189e+02, 1.8145348357e-01, 7.8941091245e-01,
+  4.5793692852e-01, 7.8474070330e-01, 7.7626585233e-01, 9.3409817393e-01,
+  5.5889858361e+00, 5.5357397689e+00, 3.5281460061e+00, 4.0979047788e+00,
+  3.1104517247e+00,-2.8696471258e+00,-6.6820246067e-01, 1.5328695270e+00,
+ -4.0623880249e-01,-1.8017631410e+00]).ravel()
     cost = Spacecraft_Trajectory_OptimizationC1(x)
     print("Delta-V cost:", cost)

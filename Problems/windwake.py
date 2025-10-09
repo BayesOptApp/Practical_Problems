@@ -24,7 +24,8 @@ class WindWakeLayout:
                  wind_seed:int=0, 
                  width=None, 
                  height=None, 
-                 n_samples:int=5):
+                 n_samples:int=5,
+                 plotting:bool=False):
         
         self.file = file
         self.wind_seed = wind_seed
@@ -54,6 +55,7 @@ class WindWakeLayout:
         self.lo = wfct.optimization.scipy.layout.LayoutOptimization(self.fi, self.boundaries, self.wd, self.ws, self.freq, self.aep_initial)
         # Use the default minimum distance that floris themselves use.
         self.min_dist = self.lo.min_dist
+        self.plotting = plotting
         # logging.setLoggerClass(self.loggerclass)
 
     def _gen_random_wind(self):
@@ -83,7 +85,59 @@ class WindWakeLayout:
                 obj += self.lo._AEP_layout_opt(x)
             obj = obj / self.n_samples
 
+        #if self.plotting:
+           
+            #fig, ax = self.plot_layout_opt_results(x)
+
+        dictt = self.fi.get_model_parameters()
+            #plt.show()
+
+
         return obj
+    
+    def plot_layout_opt_results(self,x:np.ndarray)->object:
+        """
+        This method plots the locations of the turbines in a
+        wind farm after layout optimization.
+        """
+
+        import matplotlib.pyplot as plt
+
+        locsx = [
+            self.lo._unnorm(valx, self.lo.bndx_min, self.lo.bndx_max)
+            for valx in x[0 : self.lo.nturbs]
+        ]
+        locsy = [
+            self.lo._unnorm(valy, self.lo.bndy_min, self.lo.bndy_max)
+            for valy in x[self.lo.nturbs : 2 * self.lo.nturbs]
+        ]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        fontsize = 16
+        ax.plot(locsx, locsy, "or")
+        # plt.title('Layout Optimization Results', fontsize=fontsize)
+        ax.set_xlabel("x (m)", fontsize=fontsize)
+        ax.set_ylabel("y (m)", fontsize=fontsize)
+        ax.axis("equal")
+        ax.grid()
+        ax.tick_params(which="both", labelsize=fontsize)
+        ax.legend(
+            ["Old locations", "New locations"],
+            loc="lower center",
+            bbox_to_anchor=(0.5, 1.01),
+            ncol=2,
+            fontsize=fontsize,
+        )
+
+        verts = self.boundaries
+        for i in range(len(verts)):
+            if i == len(verts) - 1:
+                ax.plot([verts[i][0], verts[0][0]], [verts[i][1], verts[0][1]], "b")
+            else:
+                ax.plot(
+                    [verts[i][0], verts[i + 1][0]], [verts[i][1], verts[i + 1][1]], "b"
+                )
+        return fig, ax
 
     def lbs(self):
         return np.zeros(2 * self.n_turbines, dtype=float)
@@ -106,12 +160,8 @@ class WindWakeLayout:
 if __name__ == "__main__":
     # Example usage
     layout = WindWakeLayout(n_turbines=3, wind_seed=0, n_samples=5)
-    #x = np.asarray([0.166666666666667, 0.833333333333333, 0.500000000000000, 0.166666666666667, 0.833333333333333, 0.833333333333333]).ravel()  # Example input
-    #x = np.asarray([0.166666666666667, 0.833333333333333, 0.500000000000000, 0.500000000000000, 0.500000000000000, 0.500000000000000]).ravel()  # Example input
-    x = np.asarray([[0.166666666666667,0.831910785957425,
-0.500000000000000,
-0.166666666666667,
-0.833333333333333,
-0.500000000000000]]).ravel()  # Example input
+    
+    x = np.asarray([[0.166666666666667,0.831910785957425,0.500000000000000,0.166666666666667,
+                     0.833333333333333,0.500000000000000]]).ravel()  # Example input
     print("Objective value:", layout.evaluate(x))
 

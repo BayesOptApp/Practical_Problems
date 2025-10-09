@@ -7,6 +7,8 @@ __author__ = "Ivón Olarte Rodríguez"
 ### Importing libraries
 import numpy as np
 
+DTYPE = np.longdouble
+
 
 def Frequency_Modulated_Sound_Waves(x:np.ndarray):
     assert x.ndim < 2, "Input array must be less than two-dimensional."

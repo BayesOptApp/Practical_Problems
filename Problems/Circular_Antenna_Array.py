@@ -44,7 +44,7 @@ def Circular_Antenna_Array(x:np.ndarray) -> np.float64:
     ub = get_xu(n)
 
     # Convert the design variables 
-    x = np.abs(ub - lb)*x + lb
+    x = np.abs(ub - lb)*x.astype(DTYPE) + lb
 
     # Compute the fitness value
     y = Fitness(x)
@@ -134,9 +134,12 @@ def Fitness(x:np.ndarray):
     y:float = s2/maxi
     sllreturn = 20.0*np.log10(y)
 
+
+    # NOTE: An upper bound 
+
     # Calculate upper and lower beamwidth bounds
     for i in range(int(num1/2)):
-        if (phi_ref + i) > num1-1:
+        if (phi_ref + i + 1) > num1-1:
             upper_bound = 180.0
             break
         if yax[phi_ref + i] < yax[phi_ref + i - 1] and yax[phi_ref + i] < yax[phi_ref + i + 1]:
@@ -242,6 +245,9 @@ if __name__ == "__main__":
     #                	0,	0,	0,	0,	0,	0]).ravel()
     # x = np.asarray([0.866666666666667, 0.333333333333333,	0.600000000000000,	0.600000000000000,	0.600000000000000,	0.600000000000000,
     #                	0,	0,	0,	0,	0,	0]).ravel() ### ERROR
-    x = np.asarray([0.996566,0.599517,0.330035,0.240970,0.332803,0.599955,-0.000677,0.006097,0.000000,39.993903,0.000000,-0.016258]).ravel() ### ERROR
+    #x = np.asarray([0.996566,0.599517,0.330035,0.240970,0.332803,0.599955,-0.000677,0.006097,0.000000,39.993903,0.000000,-0.016258]).ravel() ### ERROR
+    x = np.asarray([0.9983054, 0.22701172, 0.29484848, 0.80895907, 0.30090998,
+                0.47347428, -71.99305567, 18.37623261, -161.77688557, -17.65066344,
+                19.94996238, -137.09861124]).ravel()  ### ERROR
     potential = Circular_Antenna_Array(x)
     print(f"Circular Antena Function: {potential}")
