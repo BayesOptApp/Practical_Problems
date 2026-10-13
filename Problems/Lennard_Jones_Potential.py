@@ -1,5 +1,5 @@
 
-__author__ = "Ivón Olarte Rodríguez"
+__author__ = "Iván Olarte Rodríguez"
 
 # Based on the work made by Kudela, Stripinis and Paulavicius
 
@@ -45,25 +45,25 @@ def LJ_potential(x:np.ndarray) -> np.ndarray:
     xu = get_upper_bound(n)
 
     # Map the array to the potential bounds
-    x_eval = np.abs(xu-xl)* x  + xl
+    x_eval = np.abs(xu-xl)*x  + xl
 
     # compute the number of particles
-    n_particles = int(n/3)
+    n_particles = int(n//3)
 
     # Reshape the array to obtain the coordinates of the particles
     x_eval = x_eval.reshape((-1, 3))
 
-    r = np.ones((3, n_particles))
+    r = np.ones((n_particles, n_particles))
 
     # Compute the potential energy
     y = 0.0
     a = np.ones((n_particles,n_particles))
     b = np.tile(2, (n_particles, n_particles))
 
-    for ii in range(n_particles):
+    for ii in range(n_particles-1):
         for jj in range(ii+1,n_particles):
                 # Compute the distance between particles
-                r[ii, jj] = max(np.sqrt(np.sum((x_eval[ii, :] - x_eval[jj, :])**2)), 1e-16)
+                r[ii, jj] = max(np.sqrt(np.sum(np.power((x_eval[ii, :] - x_eval[jj, :]), 2))), 1e-16)
                 # Compute the potential energy
                 y += (a[ii,jj]/r[ii,jj]**12 - b[ii,jj]/r[ii,jj]**6)
 
@@ -124,6 +124,7 @@ if __name__ == "__main__":
     # Test the function with a sample input
     #x = np.asarray([2, 2,	1.5,	0,	0,	0]).ravel()
     #x = np.asarray([0.666666666666667, 2, 1.50000000000000, 0, 0, 0]).ravel()
-    x = np.asarray([2, 2, 1.50000000000000, 0, 0, 0, 0, 0, 0, 0, 0, 0]).ravel()
+    #x = np.asarray([2, 2, 1.50000000000000, 0, 0, 0, 0, 0, 0, 0, 0, 0]).ravel()
+    x = np.asarray([2, 2, 1.50000000000000,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0]).ravel()
     potential = LJ_potential(x)
     print(f"Lennard-Jones potential: {potential}")

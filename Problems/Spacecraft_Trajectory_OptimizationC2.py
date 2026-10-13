@@ -1,7 +1,7 @@
 import numpy as np
 from copy import deepcopy
 from typing import List, Tuple, Union, Optional
-from Problems.Spacecraft_Trajectory_OptimizationC1 import pleph_an, propagateKEP, vers, vett, lambertI, IC2par, ni2E
+from .Spacecraft_Trajectory_OptimizationC1 import pleph_an, propagateKEP, vers, vett, lambertI, IC2par, ni2E
 
 
 DTYPE = np.longdouble

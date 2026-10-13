@@ -1,5 +1,5 @@
 
-__author__ = "Ivón Olarte Rodríguez"
+__author__ = "Iván Olarte Rodríguez"
 
 # Based on the work made by Kudela, Stripinis and Paulavicius
 

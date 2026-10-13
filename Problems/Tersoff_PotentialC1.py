@@ -1,5 +1,5 @@
 
-__author__ = "Ivón Olarte Rodríguez"
+__author__ = "Iván Olarte Rodríguez"
 
 # Based on the work made by Kudela, Stripinis and Paulavicius
 
@@ -62,6 +62,7 @@ def Tersoff_PotentialC1(x:np.ndarray) -> float:
     ub = get_xu(n)
 
     x_eval = np.abs(ub - lb)*x + lb
+    #x_eval = np.abs(x - lb) + lb
     
     # Reshape the input vector x into a matrix
     p = n
@@ -92,24 +93,73 @@ def Tersoff_PotentialC1(x:np.ndarray) -> float:
             VRr[i, j] = A * np.exp(-LEMDA1 * r[i, j])
             VAr[i, j] = - B * np.exp(-LEMDA2 * r[i, j])
 
-    # Compute E
-    for i in range(NP):
-        for j  in range(NP):
-            if i == j:
-                continue
-            jeta = np.zeros((NP, NP))
-            for k in range(NP):
-                if (i == k) or  (j == k):
-                    continue
-                rd1 = max(np.sqrt(np.sum(np.power(x_eval[i, :] - x_eval[k, :],2))), 1e-16)
-                rd3 = max(np.sqrt(np.sum(np.power(x_eval[k, :] - x_eval[j, :],2))), 1e-16)
-                rd2 = max(np.sqrt(np.sum(np.power(x_eval[i, :] - x_eval[j, :],2))), 1e-16)
-                ctheta_ijk = (rd1**2 + rd2**2 - rd3**3) / (2 * rd1 * rd2)
-                G_th_ijk = GAMA*(1 + (C**2) / (D**2) - (C**2) / (D**2 + (H - ctheta_ijk)**2))
-                jeta[i, j] = jeta[i, j] + fcr[i, k] * G_th_ijk * expit(LEMDA3**M * (r[i, j] - r[i, k])**M)
+    # # Compute E
+    # for i in range(NP):
+    #     for j  in range(NP):
+    #         if i == j:
+    #             continue
+    #         jeta = np.zeros((NP, NP))
+    #         for k in range(NP):
+    #             if (i == k) or  (j == k):
+    #                 continue
+    #             rd1 = max(np.sqrt(np.sum(np.power(x_eval[i, :] - x_eval[k, :],2))), 1e-16)
+    #             rd3 = max(np.sqrt(np.sum(np.power(x_eval[k, :] - x_eval[j, :],2))), 1e-16)
+    #             rd2 = max(np.sqrt(np.sum(np.power(x_eval[i, :] - x_eval[j, :],2))), 1e-16)
+    #             ctheta_ijk = (rd1**2 + rd2**2 - rd3**3) / (2 * rd1 * rd2)
+    #             G_th_ijk = GAMA*(1 + (C**2) / (D**2) - (C**2) / (D**2 + (H - ctheta_ijk)**2))
+    #             jeta[i, j] = jeta[i, j] + fcr[i, k] * G_th_ijk * np.exp(LEMDA3**M * (r[i, j] - r[i, k])**M)
 
-            Bij = (1 + (BETA * jeta[i, j])**N1)**(-0.5 / N1)
-            E[i] = E[i] + fcr[i, j] * (VRr[i, j] + Bij * VAr[i, j]) / 2
+    #         Bij = (1 + (BETA * jeta[i, j])**N1)**(-0.5 / N1)
+    #         E[i] = E[i] + fcr[i, j] * (VRr[i, j] + Bij * VAr[i, j]) / 2
+
+    # Compute E using a numerically stable bond-order calculation
+    for i in range(NP):
+        for j in range(NP):
+            if i == j or fcr[i, j] == 0:
+                continue
+
+            # log(0) represents an initially empty sum
+            log_jeta = -np.inf
+
+            for k in range(NP):
+                if i == k or j == k or fcr[i, k] == 0:
+                    continue
+
+                rd1 = max(r[i, k], 1e-16)
+                rd2 = max(r[i, j], 1e-16)
+                rd3 = max(r[k, j], 1e-16)
+
+                # Preserves the formula in the original scripts.
+                # NOTE: Use rd3**2 instead to correct the law of cosines formula. However
+                # this would change the behavior of the function, so we keep it as is for now.  
+                ctheta_ijk = (
+                    rd1**2 + rd2**2 - rd3**3
+                ) / (2 * rd1 * rd2)
+
+                G_th_ijk = GAMA * (
+                    1 + C**2 / D**2
+                    - C**2 / (D**2 + (H - ctheta_ijk)**2)
+                )
+
+                # log(fcr * G * exp(exponent))
+                exponent = (LEMDA3 * (r[i, j] - r[i, k]))**M
+                log_term = (
+                    np.log(fcr[i, k])
+                    + np.log(G_th_ijk)
+                    + exponent
+                )
+                log_jeta = np.logaddexp(log_jeta, log_term)
+
+            # Bij = [1 + (BETA * jeta)**N1]**(-0.5 / N1)
+            t = N1 * (np.log(BETA) + log_jeta)
+            log_Bij = (-0.5 / N1) * np.logaddexp(0.0, t)
+            Bij = np.exp(log_Bij)
+
+            E[i] += (
+                fcr[i, j]
+                * (VRr[i, j] + Bij * VAr[i, j])
+                / 2
+            )
 
     # Sum all the E
     y = np.sum(E)
@@ -145,14 +195,10 @@ if __name__ == "__main__":
     # Test the function with a sample input
     
     #x = np.array([2, 2, 1.50000000000000, 0, 0,	0]).ravel()
-    #x = np.array([0.666666666666667, 2, 1.50000000000000, 0, 0, 0]).ravel()
+    x = np.array([2,2,1.50000000000000,2.66666666666667,0,0,2.83333333333333,0,0,0, 0, 0]).ravel()
     #x = np.array([3.33333333333333, 2, 1.50000000000000, 0, 0, 0]).ravel()
     #x = np.array([0, 0, 3, -4, -4, -4]).ravel()
-    x = np.array([2, 2, 1.50000000000000,	0,
-                  	0, 0, 0, 0,
-                    0,	0,	0,	0,
-                    0,	0,	0,	0,	
-                    0,	0,	0,	0,	
-                    0,	0,	0,	0]).ravel()
+    #x = np.array([2, 2, 1.50000000000000,	0,
+    #              	0, 0 ]).ravel()
     potential = Tersoff_PotentialC1(x)
     print(f"Tersoff Potential: {potential}")

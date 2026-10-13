@@ -1,5 +1,5 @@
 
-__author__ = "Ivón Olarte Rodríguez"
+__author__ = "Iván Olarte Rodríguez"
 
 # Based on the work made by Kudela, Stripinis and Paulavicius
 
@@ -14,10 +14,12 @@ import numpy as np
 
 import os
 
-def bench_fun_pitz(x:np.ndarray)->float:
+def bench_fun_pitz(x:np.ndarray, precision:int = 6, call_mode:str="docker")->float:
 
     assert x.ndim < 2, "Input array must be less than two-dimensional."
     assert x.size == 10, "The dimensionality is fixed to 10"
+    assert precision >= 0, "Precision must be a non-negative integer."
+    assert isinstance(precision, int), "Precision must be an integer."
 
     x = x.ravel()
 
@@ -28,7 +30,8 @@ def bench_fun_pitz(x:np.ndarray)->float:
     xU = get_xu(dim)
     
     # Convert the design variables 
-    x_eval = np.abs(xU - xL)*x + xL
+    #x_eval = np.abs(xU - xL)*x + xL
+    x_eval = np.abs(x - xL) + xL
 
 
     bounds = [xL,xU]
@@ -36,9 +39,13 @@ def bench_fun_pitz(x:np.ndarray)->float:
     # Fix the bounds to fit into the simulation
     y = change_bounds(x_eval,bounds=bounds,
                       lb=LB, ub=UB)
-    
+
     # Compute the objective
-    out = fhd(y)
+    out = fhd(y, precision=precision, call_mode=call_mode)
+
+    # Convert the design variables y to a list
+    y = y.tolist()
+    print(f"Design variables: {y}, Pitz Daily metric: {out}")
 
     return out
 
@@ -73,7 +80,8 @@ def bench_fun_pitz(x:np.ndarray)->float:
 import subprocess
 from typing import Iterable, Union
 
-def fhd(x: Iterable[float]) -> Union[int, float]:
+def fhd(x: Iterable[float],
+        precision: int = 6, call_mode: str = "docker") -> Union[int, float]:
     """
     Run the Docker-based objective function.
 
@@ -84,13 +92,22 @@ def fhd(x: Iterable[float]) -> Union[int, float]:
     - If stdout == 'Error' -> returns 1
     - Else parses stdout as a number and returns it.
     """
-    args = ",".join(f"{v:.4f}" for v in x)
+    args = ",".join(f"{v:.{precision}f}" for v in x)
 
-    cmd = [
-        "docker", "run", "--rm",
-        "frehbach/cfd-test-problem-suite",
-        "./dockerCall.sh", "PitzDaily", args
-    ]
+    if call_mode == "docker":
+        cmd = [
+            "docker", "run", "--rm",
+            "frehbach/cfd-test-problem-suite",
+            "./dockerCall.sh", "PitzDaily", args
+        ]
+    elif call_mode == "podman":
+        cmd = [
+            "podman", "run", "--rm",
+            "docker.io/frehbach/cfd-test-problem-suite",
+            "./dockerCall.sh", "PitzDaily", args
+        ]
+    else:
+        raise ValueError(f"Unknown call_mode: {call_mode}. Must be 'docker' or 'podman'.")
 
     # Run the command; capture stdout/stderr as text
     res = subprocess.run(cmd, capture_output=True, text=True)
@@ -98,7 +115,7 @@ def fhd(x: Iterable[float]) -> Union[int, float]:
     val = (res.stdout or "").strip()
 
     if val == "Error":
-        return 1
+        return 1.000
 
     try:
         return float(val)
@@ -122,7 +139,8 @@ def change_bounds(x:np.ndarray,
     y = np.zeros_like(x)
     for i in range(dim):
         range_i = bounds[1][i]-bounds[0][i]
-        y[i] = x[i]/range_i*(ub[i]-lb[i])+(lb[i]+ub[i])/2
+        #y[i] = x[i]/range_i*(ub[i]-lb[i])+(lb[i]+ub[i])/2
+        y[i] = (x[i]-bounds[0][i])/range_i*(ub[i]-lb[i])+lb[i]
 
     return y
 
@@ -140,7 +158,10 @@ def get_xu(nx:int)->np.ndarray:
 
 if __name__ == "__main__":
 
-    x = np.zeros((10,))
+    #x = np.zeros((10,))
     #x = np.asarray([4.81481481481481, -10, -10, -10, -10, -10, -10, -10, -10, -10]).ravel()  # Example input
-    efficiency = bench_fun_pitz(x)
-    print(f"Pitz Daily metric: {efficiency}")
+    #x = (np.array([-2.310490, 1.500729, 1.525545, 2.201431, -3.067726, -1.262475, 2.654690, -1.674178, -1.627093, 0.577142])+5.00)*2.0 - 10.00  # Example input
+    x = (np.asarray([0.465609, -0.791695, -3.717850, -2.235905, -1.440802, 0.075927, -1.818195, -1.668920, 3.310847, -0.840291])+5.00)*2.0 - 10.00  # Example input
+    #x = np.random.RandomState(seed=47).uniform(-10, 10, size=(10,))  # Random input for testing
+    efficiency = bench_fun_pitz(x, precision=6)
+    print(f"x:{x}, Pitz Daily metric: {efficiency}")
