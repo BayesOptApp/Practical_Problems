@@ -1,6 +1,6 @@
 # Practical_Problems
 This repository includes a suite of practical (real-world) optimization problems, exposed as
-[IOHexperimenter](https://iohprofiler.github.io/) (`ioh`) problems so they can be logged and analysed with IOHprofiler.
+[IOHexperimenter]([https://iohprofiler.github.io/](https://iohprofiler.github.io/IOHexperimenter/)) (`ioh`) problems so they can be logged and analysed with IOHprofiler.
 
 ## Installation
 To install IOHexperimenter (`ioh`) on its own:
