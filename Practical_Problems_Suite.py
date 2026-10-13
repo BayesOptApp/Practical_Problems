@@ -1,4 +1,4 @@
-from Problems import *
+from Practical_Problems.Problems import *
 from typing import Union, Optional, List
 from abc import abstractmethod, ABC
 import numpy as np
@@ -42,10 +42,8 @@ class Practical_Problem(ioh.iohcpp.problem.RealSingleObjective):
                          constraints=[], 
                          optimum=optimum)
         
-        # Set the problem id
+        super().__init__(self._name, n_variables, 1, True, bounds, [], optimum)
         self.set_id(prob_id)
-        
-        #self.meta_data.problem_id = prob_id
     
     def _set_bounds(self,nn:int)->None:
         r""" 
@@ -93,8 +91,9 @@ class Bench_Fun_Eps(Practical_Problem):
 
 
     # Call the superclass
-    def __init__(self, n_variables):
+    def __init__(self, n_variables, call_mode:str="docker"):
         self._name = "bench_fun_eps"
+        self.call_mode = call_mode
         super().__init__(n_variables,1121)
     
     def _set_bounds(self,nn:int)->None:
@@ -110,14 +109,26 @@ class Bench_Fun_Eps(Practical_Problem):
         """
         x_mod = self.transform(x)
 
-        return bench_fun_eps(x_mod)
+        return bench_fun_eps(x_mod, call_mode=self.call_mode)
+
+    @property
+    def call_mode(self)->str:
+        return self._call_mode
+
+    @call_mode.setter
+    def call_mode(self, value:str)->None:
+        if value not in ["docker", "podman"]:
+            raise ValueError(f"Unknown call_mode: {value}. Must be 'docker' or 'podman'.")
+        self._call_mode = value
 
 class Bench_Fun_Pitz(Practical_Problem):
 
 
     # Call the superclass
-    def __init__(self, n_variables):
+    def __init__(self, n_variables, call_mode:str="docker", precision:int=3):
         self._name = "bench_fun_pitz"
+        self.call_mode = call_mode
+        self.precision = precision
         super().__init__(n_variables,1122)
     
     def _set_bounds(self,nn:int)->None:
@@ -133,12 +144,31 @@ class Bench_Fun_Pitz(Practical_Problem):
         """
         x_mod = self.transform(x)
 
-        return bench_fun_pitz(x_mod)
+        return bench_fun_pitz(x_mod, precision=self.precision, call_mode=self.call_mode)
+
+    @property
+    def call_mode(self)->str:
+        return self._call_mode
+
+    @call_mode.setter
+    def call_mode(self, value:str)->None:
+        if value not in ["docker", "podman"]:
+            raise ValueError(f"Unknown call_mode: {value}. Must be 'docker' or 'podman'.")
+        self._call_mode = value
+
+    @property
+    def precision(self)->int:
+        return self._precision
+
+    @precision.setter
+    def precision(self, value:int)->None:
+        if not isinstance(value, int) or value < 0:
+            raise ValueError(f"Precision must be a non-negative integer. Got: {value}")
+
+        self._precision = value
 
 
 class Circular_antenna_array(Practical_Problem):
-
-    
 
     # Call the superclass
     def __init__(self, n_variables):
@@ -174,7 +204,6 @@ class Circular_antenna_array(Practical_Problem):
 
 class Frequency_modulated_sound_waves(Practical_Problem):
 
-   
 
     # Call the superclass
     def __init__(self, n_variables):
@@ -398,13 +427,15 @@ def get_practical_problem(idx:int,
     wind_seed = int(kwargs.pop('wind_seed',43))
     n_samples = int(kwargs.pop('n_samples',5))
     plotting = bool(kwargs.pop('plotting',False))
+    precision = int(kwargs.pop('precision',3))
+    call_mode = str(kwargs.pop('call_mode',"docker"))
 
     
 
     if idx == 1121:
-        return Bench_Fun_Eps(dim)
+        return Bench_Fun_Eps(dim, call_mode=call_mode)
     elif idx == 1122:
-        return Bench_Fun_Pitz(dim)
+        return Bench_Fun_Pitz(dim, call_mode=call_mode, precision=precision)
     elif idx == 1123:
         return Circular_antenna_array(dim)
     elif idx ==1124:
