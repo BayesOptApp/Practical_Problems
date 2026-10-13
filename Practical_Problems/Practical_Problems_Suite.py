@@ -1,4 +1,4 @@
-from Practical_Problems.Problems import *
+from .Problems import *
 from typing import Union, Optional, List
 from abc import abstractmethod, ABC
 import numpy as np
