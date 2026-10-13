@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Practical_Problems"
+version = "0.1.0"
+description = "Suite of practical (real-world) optimization problems exposed as IOHexperimenter problems"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "ioh<0.3.20",
+    "FLORIS==2.5.2",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib"]
+
+[project.urls]
+Homepage = "https://github.com/BayesOptApp/Practical_Problems"
+
+[tool.setuptools]
+packages = ["Practical_Problems", "Practical_Problems.Problems"]
+
+[tool.setuptools.package-data]
+"Practical_Problems.Problems" = ["*.json", "*.mat", "*.m"]

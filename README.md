@@ -4,7 +4,7 @@ This repository includes a suite of practical (real-world) optimization problems
 
 ## Installation
 ```bash
-pip install -r requirements.txt
+pip install .   # or: pip install git+https://github.com/BayesOptApp/Practical_Problems.git
 ```
 (`ioh<0.3.20`, `FLORIS==2.5.2`). The `bench_fun_eps` and `bench_fun_pitz` problems additionally require Docker or Podman.
 
@@ -39,7 +39,7 @@ Use `get_practical_problem(id, dim=...)`; pick a dimension valid for that proble
 import os
 import numpy as np
 import ioh
-from Practical_Problems_Suite import get_practical_problem
+from Practical_Problems import get_practical_problem
 
 problem = get_practical_problem(1126, dim=26)   # Spacecraft_Trajectory_OptimizationC1
 print(problem.meta_data.name, problem.meta_data.n_variables)
