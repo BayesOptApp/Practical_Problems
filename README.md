@@ -12,7 +12,7 @@ Installing this repository also installs `ioh` and the other required dependenci
 ```bash
 pip install .   # or: pip install git+https://github.com/BayesOptApp/Practical_Problems.git
 ```
-(`ioh<=0.3.22`, `FLORIS==2.5.2`). The `bench_fun_eps` and `bench_fun_pitz` problems additionally require Docker or Podman.
+(`ioh<=0.3.22`, `FLORIS`). The `bench_fun_eps` and `bench_fun_pitz` problems additionally require Docker or Podman.
 
 ## Available problems
 
