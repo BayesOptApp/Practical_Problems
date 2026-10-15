@@ -13,7 +13,7 @@ dependencies = [
     "numpy",
     "scipy",
     "ioh<=0.3.22",
-    "FLORIS==2.5.2",
+    "FLORIS>=2.5.2 <5",
 ]
 
 [project.optional-dependencies]
