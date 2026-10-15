@@ -1,0 +1,227 @@
+# FLORIS 4.7 migration of windwake_input.json.
+# Original custom turbine is embedded; no separate turbine YAML is needed.
+# v2 power entries are Cp, converted to kW at each original wind-speed knot.
+# v4 interpolates power rather than Cp: between-knot values may differ.
+# v2 gauss_legacy -> v4 gauss; this is not a bitwise-equivalent simulator.
+# v2 ngrid=5 -> v4 turbine_grid_points=3 (v4 rejects values above 3).
+# Yaw and tilt remain zero. Minimum turbine spacing in the wrapper is 252 m.
+name: windwake_v2_migrated
+description: Migration of supplied FLORIS v2 input. gauss is the v4 counterpart of
+  gauss_legacy; numerical equivalence is not guaranteed.
+floris_version: v4
+logging:
+  console:
+    enable: true
+    level: WARNING
+  file:
+    enable: false
+    level: WARNING
+solver:
+  type: turbine_grid
+  turbine_grid_points: 3
+farm:
+  layout_x:
+  - 0.0
+  layout_y:
+  - 0.0
+  turbine_type:
+  - turbine_type: nrel_5MW
+    hub_height: 90.0
+    rotor_diameter: 126.0
+    TSR: 8.0
+    operation_model: cosine-loss
+    power_thrust_table:
+      ref_air_density: 1.225
+      ref_tilt: 0.0
+      cosine_loss_exponent_yaw: 1.88
+      cosine_loss_exponent_tilt: 1.88
+      wind_speed:
+      - 2.0
+      - 2.5
+      - 3.0
+      - 3.5
+      - 4.0
+      - 4.5
+      - 5.0
+      - 5.5
+      - 6.0
+      - 6.5
+      - 7.0
+      - 7.5
+      - 8.0
+      - 8.5
+      - 9.0
+      - 9.5
+      - 10.0
+      - 10.5
+      - 11.0
+      - 11.5
+      - 12.0
+      - 12.5
+      - 13.0
+      - 13.5
+      - 14.0
+      - 14.5
+      - 15.0
+      - 15.5
+      - 16.0
+      - 16.5
+      - 17.0
+      - 17.5
+      - 18.0
+      - 18.5
+      - 19.0
+      - 19.5
+      - 20.0
+      - 20.5
+      - 21.0
+      - 21.5
+      - 22.0
+      - 22.5
+      - 23.0
+      - 23.5
+      - 24.0
+      - 24.5
+      - 25.0
+      - 25.5
+      power:
+      - 0.0
+      - 0.0
+      - 36.72217646947998
+      - 94.65664690021542
+      - 170.596225639734
+      - 267.749195775292
+      - 387.64660349913834
+      - 533.9615881025799
+      - 707.4058113747161
+      - 909.9960329488919
+      - 1142.7189153929908
+      - 1407.4983874206694
+      - 1707.1271070289472
+      - 2047.333376247725
+      - 2430.578922691761
+      - 2858.309948498885
+      - 3329.101314706786
+      - 3842.9734724607792
+      - 4403.856831609059
+      - 4994.945148432446
+      - 4969.471735482351
+      - 4971.442590750236
+      - 4983.471331488584
+      - 4964.596862591722
+      - 4995.927298234627
+      - 4996.3875396679405
+      - 4995.94171537885
+      - 4995.8994704022125
+      - 4996.053841374075
+      - 4995.7823788859505
+      - 4985.844641607814
+      - 4964.996622018522
+      - 4997.411974943283
+      - 4986.313882128553
+      - 5000.249046896228
+      - 4991.179098335805
+      - 5001.949119744551
+      - 4990.620189662408
+      - 5001.872952371006
+      - 4977.308788607293
+      - 4999.727244246007
+      - 5006.630810700224
+      - 5030.231397005136
+      - 5052.866705522322
+      - 5074.623220787719
+      - 5095.571469301275
+      - 5115.772016678309
+      - 5135.273343730004
+      thrust_coefficient:
+      - 1.19187945
+      - 1.17284634
+      - 1.09860817
+      - 1.02889592
+      - 0.97373036
+      - 0.92826162
+      - 0.89210543
+      - 0.86100905
+      - 0.835423
+      - 0.81237673
+      - 0.79225789
+      - 0.77584769
+      - 0.7629228
+      - 0.76156073
+      - 0.76261984
+      - 0.76169723
+      - 0.75232027
+      - 0.74026851
+      - 0.72987175
+      - 0.70701647
+      - 0.54054532
+      - 0.45509459
+      - 0.39343381
+      - 0.34250785
+      - 0.30487242
+      - 0.27164979
+      - 0.24361964
+      - 0.21973831
+      - 0.19918151
+      - 0.18131868
+      - 0.16537679
+      - 0.15103727
+      - 0.13998636
+      - 0.1289037
+      - 0.11970413
+      - 0.11087113
+      - 0.10339901
+      - 0.09617888
+      - 0.09009926
+      - 0.08395078
+      - 0.0791188
+      - 0.07448356
+      - 0.07050731
+      - 0.06684119
+      - 0.06345518
+      - 0.06032267
+      - 0.05741999
+      - 0.05472609
+flow_field:
+  air_density: 1.225
+  reference_wind_height: 90.0
+  turbulence_intensities:
+  - 0.06
+  wind_directions:
+  - 270.0
+  wind_speeds:
+  - 9.0
+  wind_shear: 0.12
+  wind_veer: 0.0
+wake:
+  model_strings:
+    combination_model: sosfs
+    deflection_model: gauss
+    turbulence_model: crespo_hernandez
+    velocity_model: gauss
+  enable_secondary_steering: true
+  enable_yaw_added_recovery: true
+  enable_transverse_velocities: true
+  enable_active_wake_mixing: false
+  wake_deflection_parameters:
+    gauss:
+      ad: 0.0
+      alpha: 0.58
+      bd: 0.0
+      beta: 0.077
+      dm: 1.0
+      ka: 0.38
+      kb: 0.004
+      eps_gain: 0.2
+  wake_velocity_parameters:
+    gauss:
+      alpha: 0.58
+      beta: 0.077
+      ka: 0.38
+      kb: 0.004
+  wake_turbulence_parameters:
+    crespo_hernandez:
+      ai: 0.8
+      constant: 0.5
+      downstream: -0.32
+      initial: 0.1

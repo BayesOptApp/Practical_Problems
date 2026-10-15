@@ -1,36 +1,53 @@
+"""Version-dispatched FLORIS wind layout benchmark.
+
+FLORIS 2.5.2: original implementation, including original constraint behavior.
+FLORIS 4.3 <= version < 5: modern implementation (tested with 4.7), corrected
+physical spacing/boundary checks. Values are not identical across backends.
+Place windwake_input.json and windwake_input_v4.yaml beside this module.
+The v2 backend still requires its own compatible NumPy environment.
+"""
 import os
+from pathlib import Path
 import numpy as np
-from typing import Union
-import json
+from packaging.version import Version
 
 try:
     import floris
+except ModuleNotFoundError as exc:
+    if exc.name != 'floris':
+        raise
+    raise ModuleNotFoundError('Install floris==2.5.2 or floris>=4.3,<5') from exc
+
+FLORIS_IMPORTED_VERSION = str(floris.__version__)
+_version = Version(FLORIS_IMPORTED_VERSION)
+_DEFAULT_DIRECTORY = Path(__file__).resolve().parent
+
+if _version == Version('2.5.2'):
     import floris.tools as wfct
-except ImportError:
-    raise ModuleNotFoundError("floris (>=2.5.2) is not installed")
+elif Version('4.3') <= _version < Version('5'):
+    from floris import FlorisModel, TimeSeries
 else:
-    if str(floris.__version__) != "2.5.2":
-        raise ModuleNotFoundError("floris version must be 2.5.2")
+    raise ImportError(
+        f'Unsupported FLORIS version {FLORIS_IMPORTED_VERSION}. '
+        'Supported: 2.5.2 or >=4.3,<5 (v4 backend tested with 4.7).'
+    )
 
-
-
-#eee = FlorisModel.get_defaults()
-
-class WindWakeLayout:
+class WindWakeLayoutV2:
 
     def __init__(self, 
-                 file:str = os.path.join(os.path.dirname(__file__), 'windwake_input.json'), 
-                 n_turbines:int=3, 
-                 wind_seed:int=0, 
-                 width=None, 
-                 height=None, 
-                 n_samples:int=5,
-                 plotting:bool=False):
-        
+                file=None, 
+                n_turbines:int=3, 
+                wind_seed:int=0, 
+                width=None, 
+                height=None, 
+                n_samples:int=5,
+                plotting:bool=False):
+
+        file = _DEFAULT_DIRECTORY / 'windwake_input.json' if file is None else file
         self.file = file
         self.wind_seed = wind_seed
         self.n_turbines = n_turbines
-        
+
         self.width = width if width is not None else 333.33 * n_turbines
         self.height = height if height is not None else 333.33 * n_turbines
         # How many times to sample the matrix. Default is to use a fixed sample.
@@ -80,13 +97,13 @@ class WindWakeLayout:
             obj = 0.0
             for _ in range(self.n_samples):
                 # Resample wind speed
-                self.ws = 8.0 + self.wind_rng.standard_normal(len(self.wd)) * 0.5
+                self.ws = 8.0 + self.wind_rng.standard_normal(size=len(self.wd,)) * 0.5
                 self.lo = wfct.optimization.scipy.layout.LayoutOptimization(self.fi, self.boundaries, self.wd, self.ws, self.freq, self.aep_initial)
                 obj += self.lo._AEP_layout_opt(x)
             obj = obj / self.n_samples
 
         #if self.plotting:
-           
+
             #fig, ax = self.plot_layout_opt_results(x)
 
         dictt = self.fi.get_model_parameters()
@@ -94,7 +111,7 @@ class WindWakeLayout:
 
 
         return obj
-    
+
     def plot_layout_opt_results(self,x:np.ndarray)->object:
         """
         This method plots the locations of the turbines in a
@@ -154,14 +171,124 @@ class WindWakeLayout:
 
     def __str__(self):
         return f"WindWakeLayout(file={self.file},n_turbines={self.n_turbines},width={self.width},height={self.height},wind_seed={self.wind_seed})"
-    
 
 
-if __name__ == "__main__":
-    # Example usage
-    layout = WindWakeLayout(n_turbines=3, wind_seed=0, n_samples=5)
-    
-    x = np.asarray([[0.166666666666667,0.831910785957425,0.500000000000000,0.166666666666667,
-                     0.833333333333333,0.500000000000000]]).ravel()  # Example input
-    print("Objective value:", layout.evaluate(x))
+class WindWakeLayoutV4:
+    def __init__(self, file=None, n_turbines=3, wind_seed=0, width=None,
+                 height=None, n_samples=5, plotting=False, *,
+                 turbulence_intensity=0.06, min_dist=None):
+        if not isinstance(n_turbines, (int, np.integer)) or n_turbines < 1:
+            raise ValueError('n_turbines must be a positive integer')
+        if n_samples is not None and (
+            not isinstance(n_samples, (int, np.integer)) or n_samples < 1
+        ):
+            raise ValueError('n_samples must be None or a positive integer')
+        file = _DEFAULT_DIRECTORY / 'windwake_input_v4.yaml' if file is None else file
+        self.file, self.n_turbines, self.wind_seed = file, n_turbines, wind_seed
+        self.width = float(333.33 * n_turbines if width is None else width)
+        self.height = float(333.33 * n_turbines if height is None else height)
+        if not np.all(np.isfinite([self.width, self.height])) or min(self.width, self.height) <= 0:
+            raise ValueError('width and height must be finite and positive')
+        self.n_samples, self.plotting = n_samples, plotting
 
+
+        
+        self.wind_rng = np.random.default_rng(seed=wind_seed)
+        self.wd, self.ws, self.freq = self._gen_random_wind()
+
+        self.turbulence_intensity = np.asarray([float(turbulence_intensity)] * len(self.wd))
+
+        
+        if isinstance(file, (str, Path)) and Path(file).suffix.lower() == '.json':
+            raise ValueError('Migrate the FLORIS v2 JSON to a v4 YAML/dict first')
+        
+        self.fi = FlorisModel('defaults' if file is None else file)
+        # Preserve the old random-number consumption before the first evaluation.
+        lx = self.wind_rng.uniform(0, self.width, n_turbines)
+        ly = self.wind_rng.uniform(0, self.height, n_turbines)
+        types = self.fi.core.farm.turbine_type
+
+        if len(types) not in (1, n_turbines):
+            raise ValueError('Configuration must contain one turbine type or one per turbine')
+        
+        self.fi.set(layout_x=lx, layout_y=ly)
+        self.min_dist = float(2 * self.fi.core.farm.rotor_diameters[0]
+                              if min_dist is None else min_dist)
+        if not np.isfinite(self.min_dist) or self.min_dist < 0:
+            raise ValueError('min_dist must be finite and nonnegative')
+        self.boundaries = [[0., 0.], [self.width, 0.],
+                           [self.width, self.height], [0., self.height]]
+        self.aep_initial = 1.0
+
+    def _gen_random_wind(self):
+        wd = np.arange(0., 360., 5.)
+        ws = 8. + self.wind_rng.standard_normal(len(wd)) * 0.5
+        freq = np.abs(np.sort(self.wind_rng.standard_normal(len(wd))))
+        return wd, ws, freq / freq.sum()
+
+    def _coordinates(self, x):
+        x = np.asarray(x, dtype=float)
+        if x.shape != (self.dims(),):
+            raise ValueError(f'x must have shape ({self.dims()},)')
+        return x, np.column_stack((x[:self.n_turbines] * self.width,
+                                   x[self.n_turbines:] * self.height))
+
+    def evaluate(self, x):
+        x, xy = self._coordinates(x)
+        if not np.all(np.isfinite(x)) or np.any(x < 0) or np.any(x > 1):
+            return 0.0
+        i, j = np.triu_indices(self.n_turbines, k=1)
+        if np.any(np.linalg.norm(xy[i] - xy[j], axis=1) < self.min_dist):
+            return 0.0
+        total = 0.0
+        for _ in range(1 if self.n_samples is None else self.n_samples):
+            if self.n_samples is not None:
+                self.ws = 8. + self.wind_rng.standard_normal(len(self.wd)) * 0.5
+            self.fi.set(
+                layout_x=xy[:, 0], layout_y=xy[:, 1],
+                wind_data=TimeSeries(wind_directions=self.wd, wind_speeds=self.ws,
+                                     turbulence_intensities=self.turbulence_intensity),
+            )
+            self.fi.run()
+            total -= float(self.fi.get_farm_AEP(freq=self.freq)) / self.aep_initial
+        return total / (1 if self.n_samples is None else self.n_samples)
+
+    def plot_layout_opt_results(self, x):
+        import matplotlib.pyplot as plt
+        _, xy = self._coordinates(x)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(xy[:, 0], xy[:, 1], 'or')
+        polygon = np.asarray(self.boundaries + [self.boundaries[0]])
+        ax.plot(polygon[:, 0], polygon[:, 1], 'b-')
+        ax.set(xlabel='x (m)', ylabel='y (m)', aspect='equal')
+        ax.grid()
+        return fig, ax
+
+    def lbs(self):
+        return np.zeros(self.dims())
+
+    def ubs(self):
+        return np.ones(self.dims())
+
+    def vartype(self):
+        return np.array(['cont'] * self.dims())
+
+    def dims(self):
+        return 2 * self.n_turbines
+
+    def __str__(self):
+        return (f'WindWakeLayout(file={self.file},n_turbines={self.n_turbines},'
+                f'width={self.width},height={self.height},wind_seed={self.wind_seed})')
+
+if _version == Version('2.5.2'):
+    WindWakeLayout = WindWakeLayoutV2
+else:
+    WindWakeLayout = WindWakeLayoutV4
+
+
+if __name__ == '__main__':
+    problem = WindWakeLayout(n_turbines=3, wind_seed=0, n_samples=5)
+    x = np.array([1/6, 0.831910785957425, 0.5, 1/6, 5/6, 0.5])
+    print('FLORIS version:', FLORIS_IMPORTED_VERSION)
+    print('Backend:', WindWakeLayout.__name__)
+    print('Objective value:', problem.evaluate(x))
