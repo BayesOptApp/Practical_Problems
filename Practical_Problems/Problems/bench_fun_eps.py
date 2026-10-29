@@ -22,8 +22,8 @@ def bench_fun_eps(x:np.ndarray, call_mode:str="docker")->float:
     xU = get_xu(dim)
     
     # Convert the design variables 
-    #x_eval = np.abs(xU - xL)*x + xL
-    x_eval = np.abs(x - xL) + xL
+    x_eval = np.abs(xU - xL)*x + xL
+    #x_eval = np.abs(x - xL) + xL
 
     lb = np.zeros((dim,))
     ub = 7.999*np.ones((dim,))
@@ -87,8 +87,8 @@ def change_bounds(x:np.ndarray,
     y = np.zeros_like(x)
     for i in range(dim):
         range_i = bounds[1][i]-bounds[0][i]
-        #y[i] = x[i]/range_i*(ub[i]-lb[i])+(lb[i]+ub[i])/2
-        y[i] = (x[i]-bounds[0][i])/range_i*(ub[i]-lb[i])+lb[i]
+        y[i] = x[i]/range_i*(ub[i]-lb[i])+(lb[i]+ub[i])/2
+        #y[i] = (x[i]-bounds[0][i])/range_i*(ub[i]-lb[i])+lb[i]
 
     return np.floor(y)
 
